@@ -8,6 +8,8 @@ import multiprocessing
 import multiprocessing.pool
 import copy
 
+from numba import jit
+
 
 class NoDaemonProcess(multiprocessing.Process):
     @property
@@ -66,6 +68,7 @@ def cumulative(x):
     return x
 
 
+# @jit(nopython=True) # Set "nopython" mode for best performance, equivalent to @njit
 def eMKT(daf, div, cutoff=0.15):
     res = {}
 
@@ -170,7 +173,6 @@ def aMKT(daf, div, xlow=0, xhigh=1):
 
 
 def amkt_fit(daf, div, xlow, xhigh):
-
     res = {}
 
     d_ratio = float(div['D0'] / div['Di'])
@@ -215,6 +217,7 @@ def amkt_fit(daf, div, xlow, xhigh):
     return res
 
 
+@jit(nopython=True)  # Set "nopython" mode for best performance, equivalent to @njit
 def exp_model(f_trimmed, a, b, c):
     return a + b * np.exp(-c * f_trimmed)
 
@@ -224,7 +227,7 @@ def mkt_on_df(gene_df, data_df, approach=None, pops=['AFR', 'EUR'], tests=['eMKT
     pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims) for i in range(len(gene_df.columns.values))]
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
-    pool = MyPool(processes=8)#multiprocessing.cpu_count())
+    pool = MyPool(processes=8)  # multiprocessing.cpu_count())
     results_list = pool.starmap(mkt_on_col, pars)
     pool.terminate()
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -235,13 +238,15 @@ def mkt_on_df(gene_df, data_df, approach=None, pops=['AFR', 'EUR'], tests=['eMKT
 
 
 def mkt_on_col(col, data_df, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15], do_trims=[True, False]):
-    glists = {'+': col[col == 1].index.values, '-': col[col == 0].index.values}
-    pars = [(glists[gtype], data_df, gtype, pops, tests, cutoffs, do_trims) for gtype in glists.keys()]
+    # glists = {'+': col[col == 1].index.values, '-': col[col == 0].index.values}
+    # pars = [(glists[gtype], data_df, gtype, pops, tests, cutoffs, do_trims) for gtype in glists.keys()]
 
-    pool = MyPool(processes=2)#multiprocessing.cpu_count())
-    results_list = copy.deepcopy(pool.starmap(mkt_on_list, pars))
-    pool.terminate()
-    results = pd.concat(results_list, axis=0, ignore_index=True)
+    # pool = MyPool(processes=2)  # multiprocessing.cpu_count())
+    # results_list = copy.deepcopy(pool.starmap(mkt_on_list, pars))
+    # pool.terminate()
+    # results = pd.concat(results_list, axis=0, ignore_index=True)
+
+    results = mkt_on_list(col[col == 1].index.values, data_df, pops, tests, cutoffs, do_trims)
 
     if col.name is not None:
         results['stage'] = col.name[0]
@@ -250,10 +255,9 @@ def mkt_on_col(col, data_df, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoff
     return results
 
 
-def mkt_on_list(glist, data_df, gtype=None, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15],
+def mkt_on_list(glist, data_df, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15],
                 do_trims=[True, False]):
     df = data_df[data_df['id'].isin(glist)]
-
     dafs = {}
     divs = {}
     dafs_cum = {}
@@ -279,13 +283,13 @@ def mkt_on_list(glist, data_df, gtype=None, pops=['AFR', 'EUR'], tests=['eMKT', 
                     pars.append((dafs_cum[pop], divs[pop], pop, nogenes[pop], test, do_trim))
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
-    pool = MyPool(processes=2)#multiprocessing.cpu_count())
+    pool = MyPool(processes=2)  # multiprocessing.cpu_count())
     results_list = copy.deepcopy(pool.starmap(mkt_on_daf, pars))
     pool.terminate()
 
     results = pd.concat(results_list, axis=0, ignore_index=True)
 
-    if gtype is not None: results['gtype'] = gtype
+    # if gtype is not None: results['gtype'] = gtype
 
     return results
 
@@ -318,15 +322,15 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
     results[label_col] = par
 
     return results
+
+
+# root_dir = '/home/xoel/Escritorio/mastersthesis/'
+# data_dir = root_dir + 'data/'
+# scripts_dir = root_dir + 'scripts/'
+# results_dir = root_dir + 'results/'
 #
+# genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
+# data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
 #
-#root_dir = '/home/xoel/Escritorio/mastersthesis/'
-#data_dir = root_dir + 'data/'
-#scripts_dir = root_dir + 'scripts/'
-#results_dir = root_dir + 'results/'
-#
-#genes = pd.read_csv(data_dir + 'aa_genes.csv', index_col=0, header=[0, 1])
-#data = pd.read_csv(data_dir + 'metaPopsori.tsv', sep='\t')
-#
-#for _ in range(4):
-#    results = mkt_on_df(genes, data, 'aa', pops=['AFR','EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05,0.15], do_trims=[True,False])
+# mkt_on_df(genes.iloc[:, 50:75], data, 'aa', pops=['AFR','EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05,0.15],
+#           do_trims=[True, False])
