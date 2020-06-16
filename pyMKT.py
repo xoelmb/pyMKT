@@ -139,23 +139,68 @@ def aMKT(daf, div, xlow=0, xhigh=1):
     ## Estimate the fraction of strongly deleleterious sites (d)
     res['neg_d'] = 1 - fb
 
+    model = None
+
     try:
         ## Run asymptotic MKT and retrieve alphas
         model = amkt_fit(daf, div, xlow, xhigh)
+        ratio = model['ciHigh'] / model['alpha']
+        greater = model['ciHigh'] > model['alpha']
+        interval = (1 <= abs(ratio) <= 10)
+        if not greater or not interval:
+            raise RuntimeError("daf20 confidence is too wide")
         res.update(model)
+        res['daf10'] = False
+        # print('LISTO')
 
     except:
-        #         print(e)
+        # print('e')
         daf10 = daf.copy(deep=True)
         daf10['daf'] = np.array([[x / 100, x / 100] for x in range(5, 100, 10)]).flatten()
-        daf10 = daf.groupby('daf', as_index=False).sum()
 
         try:
-            model = amkt_fit(daf, div, xlow, xhigh)
-            res.update(model)
+            model10 = amkt_fit(daf10, div, xlow, xhigh)
+            # UNCOMMENT LINES BELOW TO DISABLE COMPARISON
+            res.update(model10)
             res['daf10'] = True
 
+            # COMMENT LINES BELOW (if-else) TO DISABLE COMPARISON
+            # if model is None:
+            #     res.update(model10)
+            #     res['daf10'] = True
+            #
+            # else:
+            #     ratio10 = model['ciHigh'] / model['alpha']
+            #     greater10 = model10['ciHigh'] > model10['alpha']
+            #     interval10 = (1 <= abs(ratio10) <= 10)
+            #
+            #     # All cases where 'failed' daf20 is better
+            #     if (greater and not greater10) or (not greater and not greater10 and interval and not interval10):
+            #         raise RuntimeError('daf20 was better')
+            #
+            #     # All cases where daf10 is better
+            #     elif (not greater and greater10) or (greater and greater10 and not interval and interval10) or (not greater and not greater10 and not interval and interval10):
+            #         res.update(model10)
+            #         res['daf10'] = True
+            #
+            #     # Tricky cases: both daf10 and 20 do not comply with the two conditions (ratio in interval, ciH>alpha)
+            #     elif greater and greater10:  # But none of them in interval
+            #         if model['ciHigh'] < model['ciHigh']:
+            #             raise RuntimeError('daf20 was better')
+            #         else:
+            #             res.update(model10)
+            #             res['daf10'] = True
+            #
+            #     elif interval and interval10:  # But none of them ciH>alpha
+            #         if ratio > ratio10:
+            #             res.update(model10)
+            #             res['daf10'] = True
+            #         else:
+            #             raise RuntimeError('daf20 was better')
         except:
+            if model is not None:
+                res.update(model)
+                res['daf10'] = False
             return res
 
     # Estimate the fraction of sligthly deleterious sites in each daf category (b)
@@ -180,19 +225,23 @@ def amkt_fit(daf, div, xlow, xhigh):
     # Compute alpha values and trim
     alpha = 1 - d_ratio * (daf['Pi'] / daf['P0'])
     trim = ((daf['daf'] >= xlow) & (daf['daf'] <= xhigh))
-
+    optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), method='lm')
     # Two-step nls2() model fit at a given level of precision (res)
-    try:
-        model = optimize.curve_fit(exp_model, daf['daf'][trim], alpha[trim], method='lm')
-    #         print('Fit: lm')
+
+
+
+    ### CHECK
+    try:   #### COMPROBAR VARS INTERNAS
+        model = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), method='lm')
+        # print('Fit: lm')
     except:
         try:
-            model = optimize.curve_fit(exp_model, daf['daf'][trim], alpha[trim], method='trf')
-        #             print('Fit: trf')
+            model = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), method='trf')
+            # print('Fit: trf')
         except:
             try:
-                model = optimize.curve_fit(exp_model, daf['daf'][trim], alpha[trim], method='dogbox')
-            #                 print('Fit: dogbox')
+                model = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), method='dogbox')
+                # print('Fit: dogbox')
             except:
                 raise RuntimeError("Couldn't fit any method")
 
@@ -222,8 +271,16 @@ def exp_model(f_trimmed, a, b, c):
     return a + b * np.exp(-c * f_trimmed)
 
 
-def mkt_on_df(gene_df, data_df, approach=None, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15],
-              do_trims=[True, False]):
+def mkt_on_df(gene_df, data_df, approach=None, pops=None, tests=None, cutoffs=None, do_trims=None):
+    if do_trims is None:
+        do_trims = [True, False]
+    if cutoffs is None:
+        cutoffs = [0.05, 0.15]
+    if tests is None:
+        tests = ['eMKT', 'aMKT']
+    if pops is None:
+        pops = ['AFR', 'EUR']
+
     pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims) for i in range(len(gene_df.columns.values))]
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
@@ -237,26 +294,33 @@ def mkt_on_df(gene_df, data_df, approach=None, pops=['AFR', 'EUR'], tests=['eMKT
     return results
 
 
-def mkt_on_col(col, data_df, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15], do_trims=[True, False]):
-    # glists = {'+': col[col == 1].index.values, '-': col[col == 0].index.values}
-    # pars = [(glists[gtype], data_df, gtype, pops, tests, cutoffs, do_trims) for gtype in glists.keys()]
-
-    # pool = MyPool(processes=2)  # multiprocessing.cpu_count())
-    # results_list = copy.deepcopy(pool.starmap(mkt_on_list, pars))
-    # pool.terminate()
-    # results = pd.concat(results_list, axis=0, ignore_index=True)
-
+def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None):
+    if do_trims is None:
+        do_trims = [True, False]
+    if cutoffs is None:
+        cutoffs = [0.05, 0.15]
+    if tests is None:
+        tests = ['eMKT', 'aMKT']
+    if pops is None:
+        pops = ['AFR', 'EUR']
     results = mkt_on_list(col[col == 1].index.values, data_df, pops, tests, cutoffs, do_trims)
 
     if col.name is not None:
         results['stage'] = col.name[0]
         results['region'] = col.name[1]
-        # print(col.name, 'done')
     return results
 
 
-def mkt_on_list(glist, data_df, pops=['AFR', 'EUR'], tests=['eMKT', 'aMKT'], cutoffs=[0.05, 0.15],
-                do_trims=[True, False]):
+def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None):
+    if do_trims is None:
+        do_trims = [True, False]
+    if cutoffs is None:
+        cutoffs = [0.05, 0.15]
+    if tests is None:
+        tests = ['eMKT', 'aMKT']
+    if pops is None:
+        pops = ['AFR', 'EUR']
+
     df = data_df[data_df['id'].isin(glist)]
     dafs = {}
     divs = {}
@@ -323,14 +387,17 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
 
     return results
 
+### DEBUGGING ###
 
 # root_dir = '/home/xoel/Escritorio/mastersthesis/'
 # data_dir = root_dir + 'data/'
 # scripts_dir = root_dir + 'scripts/'
 # results_dir = root_dir + 'results/'
-#
+# #
 # genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
 # data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
 #
-# mkt_on_df(genes.iloc[:, 50:75], data, 'aa', pops=['AFR','EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05,0.15],
+#
+#
+# debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
 #           do_trims=[True, False])
