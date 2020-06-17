@@ -230,8 +230,7 @@ def amkt_fit(daf, div, xlow, xhigh):
 
 
 
-    ### CHECK
-    try:   #### COMPROBAR VARS INTERNAS
+    try:
         model = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), method='lm')
         # print('Fit: lm')
     except:
@@ -259,7 +258,7 @@ def amkt_fit(daf, div, xlow, xhigh):
     vcov = vcov.iloc[0:4, :].values
 
     simpars = np.random.multivariate_normal(mean=[1.0, res['a'], res['b'], res['c']], cov=vcov, size=10000,
-                                            check_valid='ignore')
+                                            check_valid='raise')  # check_valid=raise -> same as R implementation
 
     res['ciLow'], res['ciHigh'] = np.quantile([exp_model(x[0], x[1], x[2], x[3]) for x in simpars], [0.025, 0.975])
 
