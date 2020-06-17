@@ -270,7 +270,7 @@ def exp_model(f_trimmed, a, b, c):
     return a + b * np.exp(-c * f_trimmed)
 
 
-def mkt_on_df(gene_df, data_df, approach=None, pops=None, tests=None, cutoffs=None, do_trims=None):
+def mkt_on_df(gene_df, data_df, approach=None, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=100, b_reps=100):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -279,8 +279,10 @@ def mkt_on_df(gene_df, data_df, approach=None, pops=None, tests=None, cutoffs=No
         tests = ['eMKT', 'aMKT']
     if pops is None:
         pops = ['AFR', 'EUR']
+    if bootstrap is None:
+        bootstrap = False
 
-    pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims) for i in range(len(gene_df.columns.values))]
+    pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims, bootstrap, b_size, b_reps) for i in range(len(gene_df.columns.values))]
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
     pool = MyPool(processes=8)  # multiprocessing.cpu_count())
@@ -293,7 +295,7 @@ def mkt_on_df(gene_df, data_df, approach=None, pops=None, tests=None, cutoffs=No
     return results
 
 
-def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None):
+def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=100, b_reps=100):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -302,11 +304,33 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None)
         tests = ['eMKT', 'aMKT']
     if pops is None:
         pops = ['AFR', 'EUR']
-    results = mkt_on_list(col[col == 1].index.values, data_df, pops, tests, cutoffs, do_trims)
+    if bootstrap is None:
+        bootstrap = False
+
+    glist = col[col == 1].index.values
+    if len(glist) > 0:
+        if bootstrap:
+            results = bootstrap_on_list(glist, data_df, pops, tests, cutoffs, do_trims, b_size, b_reps)
+        else:
+            results = mkt_on_list(glist, data_df, pops, tests, cutoffs, do_trims)
+    else:
+        results = {}
 
     if col.name is not None:
         results['stage'] = col.name[0]
         results['region'] = col.name[1]
+    return results
+
+
+def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, b_size=100, b_reps=100):
+
+    pars = [(np.random.choice(glist, b_size), data_df, pops, tests, cutoffs, do_trims) for _ in range(b_reps)]
+
+    pool = MyPool(processes=4)  # multiprocessing.cpu_count())
+    results_list = copy.deepcopy(pool.starmap(mkt_on_daf, pars))
+    pool.terminate()
+
+    results = pd.concat(results_list, axis=0, ignore_index=True)
     return results
 
 
@@ -387,7 +411,7 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
     return results
 
 ### DEBUGGING ###
-
+#
 # root_dir = '/home/xoel/Escritorio/mastersthesis/'
 # data_dir = root_dir + 'data/'
 # scripts_dir = root_dir + 'scripts/'
@@ -399,4 +423,4 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
 #
 #
 # debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
-#           do_trims=[True, False])
+#           do_trims=[True, False], bootstrap=False, b_size=100, b_reps=100)
