@@ -220,7 +220,8 @@ def aMKT(daf, div, xlow=0, xhigh=1, check='raise'):
             if model is not None:
                 res.update(model)
                 res['daf10'] = False
-            return res
+            else:
+                return res
 
     # Estimate the fraction of sligthly deleterious sites in each daf category (b)
     omegaD = daf['Pi'] - (((1 - res['alpha']) * Di * daf['P0']) / D0)
@@ -302,7 +303,7 @@ def exp_model(f_trimmed, a, b, c):
 
 
 def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None,
-              b_size=100, b_reps=100):
+              b_size=None, b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -313,6 +314,10 @@ def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None,
         pops = ['AFR', 'EUR']
     if bootstrap is None:
         bootstrap = False
+    if b_size is None:
+        b_size = 2000
+    if b_reps is None:
+        b_reps = 100
 
     pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims, bootstrap, b_size, b_reps) for i in
             range(len(gene_df.columns.values))]
@@ -328,8 +333,8 @@ def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None,
     return results
 
 
-def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=100,
-               b_reps=100):
+def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=None,
+               b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -340,6 +345,10 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None,
         pops = ['AFR', 'EUR']
     if bootstrap is None:
         bootstrap = False
+    if b_size is None:
+        b_size = 2000
+    if b_reps is None:
+        b_reps = 100
 
     glist = col[col == 1].index.values
     if len(glist) > 0:
@@ -357,11 +366,24 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None,
     return results
 
 
-def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, b_size=100, b_reps=100):
-    pars = [(np.random.choice(glist, b_size), data_df, pops, tests, cutoffs, do_trims) for _ in range(b_reps)]
+def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, b_size=None, b_reps=None):
+    if do_trims is None:
+        do_trims = [True, False]
+    if cutoffs is None:
+        cutoffs = [0.05, 0.15]
+    if tests is None:
+        tests = ['eMKT', 'aMKT']
+    if pops is None:
+        pops = ['AFR', 'EUR']
+    if b_size is None:
+        b_size = 2000
+    if b_reps is None:
+        b_reps = 100
 
+
+    pars = [(np.random.choice(glist, b_size), data_df, pops, tests, cutoffs, do_trims) for _ in range(b_reps)]
     pool = MyPool(processes=4)  # multiprocessing.cpu_count())
-    results_list = copy.deepcopy(pool.starmap(mkt_on_daf, pars))
+    results_list = copy.deepcopy(pool.starmap(mkt_on_list, pars))
     pool.terminate()
 
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -456,7 +478,7 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
 # #
 # genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
 # data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
-#
+
 #
 #
 # debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
