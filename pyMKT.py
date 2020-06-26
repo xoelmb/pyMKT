@@ -353,10 +353,7 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None,
 
     glist = col[col == 1].index.values
     if len(glist) > 0:
-        if bootstrap:
-            results = bootstrap_on_list(glist, data_df, pops, tests, cutoffs, do_trims, b_size, b_reps)
-        else:
-            results = mkt_on_list(glist, data_df, pops, tests, cutoffs, do_trims)
+        results = mkt_on_list(glist, data_df, pops, tests, cutoffs, do_trims, bootstrap, b_size, b_reps)
     else:
         results = pd.DataFrame(index=[0])
         results['nogenes'] = 0
@@ -367,7 +364,8 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None,
     return results
 
 
-def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, b_size=None, b_reps=None):
+def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=None,
+               b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -376,76 +374,101 @@ def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_tr
         tests = ['eMKT', 'aMKT']
     if pops is None:
         pops = ['AFR', 'EUR']
+    if bootstrap is None:
+        bootstrap = False
     if b_size is None:
         b_size = 2000
     if b_reps is None:
         b_reps = 100
 
-    pars = [(np.random.choice(glist, b_size), data_df, pops, tests, cutoffs, do_trims) for _ in range(b_reps)]
-    pool = MyPool(processes=1)  # multiprocessing.cpu_count())
-    results_list = pool.starmap(mkt_on_list, pars)
-    pool.terminate()
+    df = data_df[data_df['id'].isin(glist)]
 
+    pars = []
+    for pop in pops:
+        subdata = df[df['pop'] == pop]
+        if bootstrap:
+            pars.append((subdata, pop, tests, cutoffs, do_trims, b_size, b_reps))
+        else:
+            pars.append((subdata, pop, tests, cutoffs, do_trims))
+
+    func = bootstrap_on_subdata if bootstrap else mkt_on_subdata
+    # Loads the models for all the parameters parsed using multiprocessing to speed up computations
+    pool = MyPool(processes=8)  # multiprocessing.cpu_count())
+    results_list = pool.starmap(func, pars)
+    pool.terminate()
     results = pd.concat(results_list, axis=0, ignore_index=True)
+
     return results
 
 
-def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None):
+def bootstrap_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=None, b_size=None, b_reps=None):
+    nogenes = len(subdata.index.values)
+    if nogenes <= 0:
+        results = pd.DataFrame(index=[0])
+        results['nogenes'] = 0
+    else:
+        if do_trims is None:
+            do_trims = [True, False]
+        if cutoffs is None:
+            cutoffs = [0.05, 0.15]
+        if tests is None:
+            tests = ['eMKT', 'aMKT']
+        if b_size is None:
+            b_size = 2000
+        if b_reps is None:
+            b_reps = 100
+
+        pars = [(subdata.sample(n=b_size, replace=True), pop, tests, cutoffs, do_trims) for _ in range(b_reps)]
+        pool = MyPool(processes=1)  # multiprocessing.cpu_count())
+        results_list = pool.starmap(mkt_on_subdata, pars)
+        pool.terminate()
+
+        results = pd.concat(results_list, axis=0, ignore_index=True)
+
+    return results
+
+
+
+def mkt_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
         cutoffs = [0.05, 0.15]
     if tests is None:
         tests = ['eMKT', 'aMKT']
-    if pops is None:
-        pops = ['AFR', 'EUR']
 
-    df = data_df[data_df['id'].isin(glist)]
-    dafs = {}
-    divs = {}
-    dafs_cum = {}
-    nogenes = {}
-
-    for pop in pops:
-        pop_df = df[df['pop'] == pop]
-        nogenes[pop] = len(pop_df.index.values)
-
+    nogenes = len(subdata.index.values)
+    if nogenes <= 0:
+        results = pd.DataFrame(index=[0])
+    else:
         if 'aMKT' in tests:
-            dafs_cum[pop], divs[pop] = makeSfs(pop_df, cum=True)
+            daf_cum, div = makeSfs(subdata, cum=True)
         if 'eMKT' in tests:
-            dafs[pop], divs[pop] = makeSfs(pop_df, cum=False)
+            daf, div = makeSfs(subdata, cum=False)
 
-    pars = []
-    for pop in pops:
+        pars = []
         for test in tests:
             if test == 'eMKT':
                 for cutoff in cutoffs:
-                    pars.append([dafs[pop], divs[pop], pop, nogenes[pop], test, cutoff])
+                    pars.append([daf, div, test, cutoff])
             elif test == 'aMKT':
                 for do_trim in do_trims:
-                    pars.append((dafs_cum[pop], divs[pop], pop, nogenes[pop], test, do_trim))
+                    pars.append((daf_cum, div, test, do_trim))
 
-    # Loads the models for all the parameters parsed using multiprocessing to speed up computations
-    pool = MyPool(processes=2)  # multiprocessing.cpu_count())
-    results_list = pool.starmap(mkt_on_daf, pars)
-    pool.terminate()
+        # Loads the models for all the parameters parsed using multiprocessing to speed up computations
+        pool = MyPool(processes=2)  # multiprocessing.cpu_count())
+        results_list = pool.starmap(mkt_on_daf, pars)
+        pool.terminate()
 
-    results = pd.concat(results_list, axis=0, ignore_index=True)
+        results = pd.concat(results_list, axis=0, ignore_index=True)
 
-    # if gtype is not None: results['gtype'] = gtype
+    if pop is not None: results['pop'] = pop
+    results['nogenes'] = nogenes
 
     return results
 
 
-#def mkt_on_subdata():
-
-
-
-
-
-
-
-def mkt_on_daf(daf, div, pop, nogenes, test, par):
+def mkt_on_daf(daf, div, test, par):
     try:
         if test == 'eMKT':
             results = eMKT(daf, div, par)
@@ -470,8 +493,6 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
         results = pd.DataFrame(index=[0])
         label_col = 'cutoff' if test == 'eMKT' else 'trim'
 
-    if pop is not None: results['pop'] = pop
-    if nogenes is not None: results['nogenes'] = nogenes
     results['test'] = test
     results[label_col] = par
 
