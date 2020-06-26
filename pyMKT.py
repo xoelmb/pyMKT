@@ -6,7 +6,6 @@ from fisher import pvalue
 from scipy import optimize
 import multiprocessing
 import multiprocessing.pool
-import copy
 
 from numba import jit
 
@@ -157,7 +156,7 @@ def aMKT(daf, div, xlow=0, xhigh=1, check='raise'):
 
     except:
         # print('trying daf10')
-        daf10 = daf.copy(deep=True)
+        daf10 = daf
         daf10['daf'] = np.array([[x / 100, x / 100] for x in range(5, 100, 10)]).flatten()
         daf10 = daf10.groupby('daf', as_index=False).sum()
         # print(daf10)
@@ -223,11 +222,11 @@ def aMKT(daf, div, xlow=0, xhigh=1, check='raise'):
             else:
                 return res
 
-    # Estimate the fraction of sligthly deleterious sites in each daf category (b)
+    # Estimate the fraction of slightly deleterious sites in each daf category (b)
     omegaD = daf['Pi'] - (((1 - res['alpha']) * Di * daf['P0']) / D0)
     res['neg_b'] = (omegaD.sum() / daf['P0'].sum()) * (m0 / mi)
 
-    # Re-estimate the truly number of neutral sites, removing the slightly deleterious 
+    # Re-estimate the truly number of neutral sites, removing the slightly deleterious
     res['neg_f'] = fb - res['neg_b']
 
     ## Omega A and Omega
@@ -260,16 +259,18 @@ def amkt_fit(daf, div, xlow, xhigh, check='raise'):
 
     # Second fit using initially guessed values or unbounded fit:
     try:
-        popt, pcov = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), p0=popt, method='lm')
+        popt, pcov = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), p0=popt,
+                                        method='lm')
         # print('Fit: lm')
     except:
         try:
-            popt, pcov = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), p0=popt, method='trf')
+            popt, pcov = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), p0=popt,
+                                            method='trf')
             # print('Fit: trf')
         except:
             try:
                 popt, pcov = optimize.curve_fit(exp_model, daf['daf'][trim].to_numpy(), alpha[trim].to_numpy(), p0=popt,
-                                           method='dogbox')
+                                                method='dogbox')
                 # print('Fit: dogbox')
             except:
                 if not popt:
@@ -380,10 +381,9 @@ def bootstrap_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_tr
     if b_reps is None:
         b_reps = 100
 
-
     pars = [(np.random.choice(glist, b_size), data_df, pops, tests, cutoffs, do_trims) for _ in range(b_reps)]
-    pool = MyPool(processes=4)  # multiprocessing.cpu_count())
-    results_list = copy.deepcopy(pool.starmap(mkt_on_list, pars))
+    pool = MyPool(processes=1)  # multiprocessing.cpu_count())
+    results_list = pool.starmap(mkt_on_list, pars)
     pool.terminate()
 
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -427,7 +427,7 @@ def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=No
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
     pool = MyPool(processes=2)  # multiprocessing.cpu_count())
-    results_list = copy.deepcopy(pool.starmap(mkt_on_daf, pars))
+    results_list = pool.starmap(mkt_on_daf, pars)
     pool.terminate()
 
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -437,10 +437,18 @@ def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=No
     return results
 
 
+#def mkt_on_subdata():
+
+
+
+
+
+
+
 def mkt_on_daf(daf, div, pop, nogenes, test, par):
     try:
         if test == 'eMKT':
-            results = copy.deepcopy(eMKT(daf, div, par))
+            results = eMKT(daf, div, par)
             results = pd.DataFrame(results, index=[0])
             label_col = 'cutoff'
         elif test == 'aMKT':
@@ -450,9 +458,9 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
             else:
                 xlow = 0
                 xhigh = 1
-            results = copy.deepcopy(aMKT(daf, div, xlow, xhigh, check='raise'))
+            results = aMKT(daf, div, xlow, xhigh, check='raise')
             if 'alpha' not in results.keys():  # Uses covar matrix even if it's not valid, leads to bad CI's
-                results = copy.deepcopy(aMKT(daf, div, xlow, xhigh, check='ignore'))
+                results = aMKT(daf, div, xlow, xhigh, check='ignore')
 
             results = pd.DataFrame(results, index=[0])
             label_col = 'trim'
@@ -478,8 +486,8 @@ def mkt_on_daf(daf, div, pop, nogenes, test, par):
 # #
 # genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
 # data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
-
 #
+
 #
 # debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
 #           do_trims=[True, False], bootstrap=False, b_size=100, b_reps=100)
