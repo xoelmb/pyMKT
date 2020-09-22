@@ -286,7 +286,7 @@ def exp_model(f_trimmed, a, b, c):
 
 
 def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None,
-              b_reps=None):
+              b_size=None, b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -300,11 +300,11 @@ def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None,
     if b_reps is None:
         b_reps = 100
 
-    pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims, bootstrap, b_reps) for i in
+    pars = [(gene_df.iloc[:, i], data_df, pops, tests, cutoffs, do_trims, bootstrap, b_size, b_reps) for i in
             range(len(gene_df.columns.values))]
 
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
-    pool = MyPool(processes=4)  # multiprocessing.cpu_count())
+    pool = MyPool(processes=8)  # multiprocessing.cpu_count())
     results_list = pool.starmap(mkt_on_col, pars)
     pool.terminate()
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -314,7 +314,8 @@ def mkt_on_df(gene_df, data_df, label=None, pops=None, tests=None, cutoffs=None,
     return results
 
 
-def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_reps=None):
+def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=None,
+               b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -330,21 +331,19 @@ def mkt_on_col(col, data_df, pops=None, tests=None, cutoffs=None, do_trims=None,
 
     glist = col[col == 1].index.values
     if len(glist) > 0:
-        results = mkt_on_list(glist, data_df, pops, tests, cutoffs, do_trims, bootstrap, b_reps)
+        results = mkt_on_list(glist, data_df, pops, tests, cutoffs, do_trims, bootstrap, b_size, b_reps)
     else:
         results = pd.DataFrame(index=[0])
         results['nogenes'] = 0
 
     if col.name is not None:
-        if isinstance(col.name, str):
-            results['name'] = col.name
-        else:
-            results['stage'] = col.name[0]
-            results['region'] = col.name[1]
+        results['stage'] = col.name[0]
+        results['region'] = col.name[1]
     return results
 
 
-def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_reps=None):
+def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=None, bootstrap=None, b_size=None,
+               b_reps=None):
     if do_trims is None:
         do_trims = [True, False]
     if cutoffs is None:
@@ -364,13 +363,13 @@ def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=No
     for pop in pops:
         subdata = df[df['pop'] == pop]
         if bootstrap:
-            pars.append((subdata, pop, tests, cutoffs, do_trims, b_reps))
+            pars.append((subdata, pop, tests, cutoffs, do_trims, b_size, b_reps))
         else:
             pars.append((subdata, pop, tests, cutoffs, do_trims))
 
     func = bootstrap_on_subdata if bootstrap else mkt_on_subdata
     # Loads the models for all the parameters parsed using multiprocessing to speed up computations
-    pool = MyPool(processes=2)  # multiprocessing.cpu_count())
+    pool = MyPool(processes=8)  # multiprocessing.cpu_count())
     results_list = pool.starmap(func, pars)
     pool.terminate()
     results = pd.concat(results_list, axis=0, ignore_index=True)
@@ -378,7 +377,7 @@ def mkt_on_list(glist, data_df, pops=None, tests=None, cutoffs=None, do_trims=No
     return results
 
 
-def bootstrap_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=None, b_reps=None):
+def bootstrap_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=None, b_size=None, b_reps=None):
     nogenes = len(subdata.index.values)
     if nogenes <= 0:
         results = pd.DataFrame(index=[0])
@@ -390,17 +389,20 @@ def bootstrap_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=N
             cutoffs = [0.05, 0.15]
         if tests is None:
             tests = ['eMKT', 'aMKT']
+        if b_size is None:
+            b_size = nogenes
         if b_reps is None:
             b_reps = 100
 
-        pars = [(subdata.sample(n=nogenes, replace=True), pop, tests, cutoffs, do_trims) for _ in range(b_reps)]
-        pool = MyPool(processes=1)  # multiprocessing.cpu_count())
+        pars = [(subdata.sample(n=b_size, replace=True), pop, tests, cutoffs, do_trims) for _ in range(b_reps)]
+        pool = MyPool(processes=2)  # multiprocessing.cpu_count())
         results_list = pool.starmap(mkt_on_subdata, pars)
         pool.terminate()
 
         results = pd.concat(results_list, axis=0, ignore_index=True)
 
     return results
+
 
 
 def mkt_on_subdata(subdata, pop=None, tests=None, cutoffs=None, do_trims=None):
@@ -471,8 +473,8 @@ def mkt_on_daf(daf, div, test, par):
     results[label_col] = par
 
     return results
-#
-# ## DEBUGGING ###
+
+### DEBUGGING ###
 #
 # root_dir = '/home/xoel/Escritorio/mastersthesis/'
 # data_dir = root_dir + 'data/'
@@ -481,8 +483,8 @@ def mkt_on_daf(daf, div, test, par):
 # #
 # genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
 # data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
-
 #
+
 #
 # debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
 #           do_trims=[True, False], bootstrap=False, b_size=100, b_reps=100)
