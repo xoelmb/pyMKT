@@ -24,6 +24,7 @@ class NoDaemonContext(type(multiprocessing.get_context())):
     Process = NoDaemonProcess
 
 
+
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
 class MyPool(multiprocessing.pool.Pool):
