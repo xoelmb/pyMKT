@@ -3,6 +3,9 @@
 import pandas as pd
 import numpy as np
 import multiprocessing as mp
+import numba
+from numba import jitclass, types
+import mktest
 
 class MKT:
     """
@@ -17,7 +20,7 @@ class MKT:
     
     def __init__(self, genes, poldiv):
         self.genesets = self._get_genes(genes)
-        self.poldiv = poldiv
+        self.poldiv = self._get_poldiv(poldiv)
         self.results = pd.DataFrame(index=[], columns=self.columns, dtype=self.dtypes)
         self.result_list = []
 
@@ -30,24 +33,34 @@ class MKT:
             return genes.apply(self._col_to_array, axis=0).T.values
 
         if isinstance(genes, np.array):
-            return np.array(('unnamed', np.array(genes, str)))
+            return ('unnamed', np.array(genes, str))
         
         else:
             raise TypeError('df or np.array(strings)')
 
 
     def _col_to_array(self, col):
-        return np.array(('_'.join(col.name), np.array(col.index[col == 1].values, str)))
-
+        return (col.name, np.array(col.index[col == 1].values, str))
     
-    def test(self, genes=None, data=None, tests=None, thresholds=None, populations=None, label=None):
-        genes = self.genesets if not genes else genes
+    
+    def _get_poldiv(self, poldiv):
+        new = poldiv.copy()
+        new['daf0f'] = new['daf0f'].apply(self._daf_divider)
+        new['daf4f'] = new['daf4f'].apply(self._daf_divider)
+        return new
+    
+
+    def _daf_divider(self, dafxf):
+        return list(map(int, dafxf.split(';')))
+    
+    def test(self, genesets=None, data=None, tests=None, thresholds=None, populations=None, label=None):
+        genesets = self.genesets if not genesets else genesets
         data = self.poldiv if not data else data
         tests = self.tests_dft if not tests else tests
         thresholds = self.thresholds_dft if not thresholds else thresholds
         populations = self.populations_dft if not populations else populations
     
-        self.last_result = mktest(genes, data, tests, thresholds, populations)
+        self.last_result = mktest.mktest(genesets, data, tests, thresholds, populations)
 
         if label:
             self.last_result['label'] = label
@@ -63,28 +76,35 @@ class MKT:
         self.result_list.append(new)
 
 
-    def amkt(self, genes=None, data=None, thresholds=None, populations=None, label=None):
+    def amkt(self, thresholds=None, populations=None, label=None):
 
-        return self.test(genes=genes, data=data, tests='aMKT', thresholds=thresholds, populations=populations, label=label)
-
-
-    def emkt(self, genes=None, data=None, thresholds=None, populations=None, label=None):
-
-        return self.test(genes=genes, data=data, tests='eMKT', thresholds=thresholds, populations=populations, label=label)
+        return self.test(tests='aMKT', thresholds=thresholds, populations=populations, label=label)
 
 
-    def bootstrap(self, n=599, (self, genes=None, data=None, thresholds=None, populations=None, label=None):
+    def emkt(self, thresholds=None, populations=None, label=None):
 
-        bs_genes = np.array([_aux_bs(geneset, n=n) for geneset in genes])
+        return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
+
+
+    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None):
         
-        return self.test(genes=bs_genes, data=data, tests=['eMKT', 'aMKT'], thresholds=thresholds, populations=populations, label=label)
+        self.bs_genes = np.array([self._aux_bs(geneset, n=n) for geneset in self.genesets])
+        self.bs_genes = self.bs_genes.flatten()
+
+        return self.test(genesets=self.bs_genes, tests=tests, thresholds=thresholds, populations=populations, label=label)
         
 
     def _aux_bs(self, geneset, n=599):
 
-        bs_geneset = [np.array((geneset[0], np.random.choice(geneset[1],
-                    size=len(geneset[1]), replace=True))) for _ in range(n)]
+        bs_geneset = [Geneset(geneset.name,
+                      np.random.choice(geneset.geneset, size=len(geneset.geneset), replace=True)) for _ in range(n)]
     
-        return np.array(bs_geneset)
+        return bs_geneset
 
             
+@jitclass([('name', types.string),
+           ('geneset', numba.types.Array(types.UnicodeCharSeq(15), 1, 'C'))])
+class Geneset:
+    def __init__(self, name, geneset):
+        self.name = name
+        self.geneset = geneset
