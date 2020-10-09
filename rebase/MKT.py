@@ -71,9 +71,10 @@ class MKT:
 
     
     def _update_results(self, new):
+        return
 
-        self.results = pd.concat([self.results, new])
-        self.result_list.append(new)
+        # self.results = pd.concat([self.results, new])
+        # self.result_list.append(new)
 
 
     def amkt(self, thresholds=None, populations=None, label=None):
@@ -88,23 +89,22 @@ class MKT:
 
     def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None):
         
-        self.bs_genes = np.array([self._aux_bs(geneset, n=n) for geneset in self.genesets])
-        self.bs_genes = self.bs_genes.flatten()
+        self.bs_genes = tuple(self._aux_bs(geneset, n=n) for geneset in self.genesets)
 
         return self.test(genesets=self.bs_genes, tests=tests, thresholds=thresholds, populations=populations, label=label)
         
 
     def _aux_bs(self, geneset, n=599):
 
-        bs_geneset = [Geneset(geneset.name,
-                      np.random.choice(geneset.geneset, size=len(geneset.geneset), replace=True)) for _ in range(n)]
+        bs_geneset = [(geneset[0],
+                      np.random.choice(geneset[1], size=len(geneset[1]), replace=True)) for _ in range(n)]
     
         return bs_geneset
 
             
-@jitclass([('name', types.string),
-           ('geneset', numba.types.Array(types.UnicodeCharSeq(15), 1, 'C'))])
-class Geneset:
-    def __init__(self, name, geneset):
-        self.name = name
-        self.geneset = geneset
+# @jitclass([('name', types.string),
+#            ('geneset', numba.types.Array(types.UnicodeCharSeq(15), 1, 'C'))])
+# class Geneset:
+#     def __init__(self, name, geneset):
+#         self.name = name
+#         self.geneset = geneset
