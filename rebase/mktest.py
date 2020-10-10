@@ -3,6 +3,7 @@ import numpy as np
 import pathos.multiprocessing as mp
 import sfs
 import tests
+import time
 
 n_jobs = mp.cpu_count()
 
@@ -10,10 +11,9 @@ def mktest(genesets, data, tests, thresholds, populations):
      poldivs = sfs.parallel_sfs(genesets, data, tests, populations)
      
      pars = par_builder(poldivs, tests, thresholds)
-
      par_expander = lambda x: mkt_caller(**x)
 
-     mypool = mp.Pool(n_jobs)
+     mypool = mp.Pool(n_jobs+2)
      results = mypool.map(par_expander, pars)
      mypool.terminate()
 
@@ -37,21 +37,37 @@ def par_builder(poldivs, tests, thresholds):
 
 
 def mkt_caller(daf, div, test, threshold, name=None, population=None):
-     return (daf, div, threshold)
-     # if test == 'aMKT':
-     #      results = dict(tests.amkt(**daf, **div, threshold=threshold))
-     # elif test == 'eMKT':
-     #      results = dict(tests.emkt(**daf, **div, threshold=threshold))
-     # else:
-     #      raise RuntimeError('test not available')
+     test='d_emkt'
+     f = np.arange(0.025,0.985, 0.05)
+     if test == 'old_emkt':
+          daf['daf'] = f
+          t0=time.time()
+          results = tests.old_emkt(daf, div, cutoff=threshold)
+          return    time.time()-t0
+     elif test == 'aMKT':
+          t0=time.time()
+          results = dict(tests.emkt(**daf, **div, threshold=threshold, f=f))
+          return time.time()-t0
+     elif test == 'eMKT':
+          t0=time.time()
+          results = dict(tests.v_emkt(**daf, **div, threshold=threshold, f=f))
+          return time.time()-t0
+     elif test == 'd_emkt':
+          t0=time.time()
+          results = tests.emkt(**daf, **div, threshold=threshold, f=f)
+          return time.time()-t0
+
+
+     else:
+          raise RuntimeError('test not available')
      
           
 
-     # for to_name in [name, population]:
-     #      if to_name:
-     #           results[to_name] = to_name
+     for to_name in [name, population]:
+          if to_name:
+               results[to_name] = to_name
 
-     # return results
+     return results
 
 
 

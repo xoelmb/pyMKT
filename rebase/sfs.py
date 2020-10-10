@@ -63,8 +63,8 @@ def makeSfs(data, cum=True):
               P0=np.array(data.daf4f.to_list(), dtype=int).sum(axis=0))
 
     if cum:
-        daf_cum = dict(Pi=np.cumsum(daf['Pi'][::-1])[::-1],
-                      P0=np.cumsum(daf['P0'][::-1])[::-1])
+        daf_cum = dict(Pi=np.ascontiguousarray(np.cumsum(daf['Pi'][::-1])[::-1]),
+                      P0=np.ascontiguousarray(np.cumsum(daf['P0'][::-1])[::-1]))
         return dict((('daf', daf), ('daf_cum', daf_cum), ('div', div)))
     else:
         return dict((('daf', daf), ('div', div)))

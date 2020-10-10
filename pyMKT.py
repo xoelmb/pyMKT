@@ -281,7 +281,7 @@ def amkt_fit(daf, div, xlow, xhigh, check='raise'):
     return res
 
 
-@jit(nopython=True)  # Set "nopython" mode for best performance, equivalent to @njit
+@jit(nopython=True, cache=True, parallel=True)  # Set "nopython" mode for best performance, equivalent to @njit
 def exp_model(f_trimmed, a, b, c):
     return a + b * np.exp(-c * f_trimmed)
 
