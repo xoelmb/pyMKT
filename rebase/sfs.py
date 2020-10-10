@@ -1,8 +1,8 @@
 import numpy as np
 import multiprocessing as mp
 # import pathos.multiprocessing as mp
-from numba import float64, int64, jitclass
-
+# from numba import float64, int64, jitclass, unicode_type
+from numba import types, typed, jit
 
 n_jobs = mp.cpu_count()
 # specs_daf = [('daf', float64[::1]),
@@ -53,6 +53,7 @@ def sfs(geneset, data, tests, populations):
 
 
 def makeSfs(data, cum=True):
+
     div = dict(mi=data.mi.sum(),
               Di=data.di.sum(),
               m0=data.m0.sum(),
@@ -64,9 +65,10 @@ def makeSfs(data, cum=True):
     if cum:
         daf_cum = dict(Pi=np.cumsum(daf['Pi'][::-1])[::-1],
                       P0=np.cumsum(daf['P0'][::-1])[::-1])
-        return (('daf', daf), ('daf_cum', daf_cum), ('div', div))
+        return dict((('daf', daf), ('daf_cum', daf_cum), ('div', div)))
     else:
-        return (('daf', daf), ('div', div))
+        return dict((('daf', daf), ('div', div)))
+
 
 
 ### DEBUGGING ###

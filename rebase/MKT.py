@@ -44,9 +44,14 @@ class MKT:
     
     
     def _get_poldiv(self, poldiv):
-        new = poldiv.copy()
+
+        col_types = dict(list(map(lambda x: (x, int),['mi', 'm0', 'pi', 'p0', 'di', 'd0'])))
+
+        new = poldiv.astype(col_types)
+        
         new['daf0f'] = new['daf0f'].apply(self._daf_divider)
         new['daf4f'] = new['daf4f'].apply(self._daf_divider)
+
         return new
     
 
