@@ -53,7 +53,10 @@ def sfs(geneset, data, tests, populations):
 
 
 def makeSfs(data, cum=True):
-
+    div = typed.Dict.empty(
+        key_type=types.unicode_type,
+        value_type=types.int64,
+    )
     div = dict(mi=data.mi.sum(),
               Di=data.di.sum(),
               m0=data.m0.sum(),

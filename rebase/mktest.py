@@ -37,22 +37,26 @@ def par_builder(poldivs, tests, thresholds):
 
 
 def mkt_caller(daf, div, test, threshold, name=None, population=None):
-     test='d_emkt'
+     test='nold_eMKT'
      f = np.arange(0.025,0.985, 0.05)
-     if test == 'old_emkt':
+     if test == 'old_eMKT':
           daf['daf'] = f
           t0=time.time()
           results = tests.old_emkt(daf, div, cutoff=threshold)
           return    time.time()-t0
-     elif test == 'aMKT':
+     elif test == 'nold_eMKT':
+          t0=time.time()
+          results = tests.nold_emkt(daf, div, cutoff=threshold, f=f)
+          return    time.time()-t0
+     elif test == 'eMKT':
           t0=time.time()
           results = dict(tests.emkt(**daf, **div, threshold=threshold, f=f))
           return time.time()-t0
-     elif test == 'eMKT':
+     elif test == 'v_eMKT':
           t0=time.time()
           results = dict(tests.v_emkt(**daf, **div, threshold=threshold, f=f))
           return time.time()-t0
-     elif test == 'd_emkt':
+     elif test == 'd_eMKT':
           t0=time.time()
           results = tests.emkt(**daf, **div, threshold=threshold, f=f)
           return time.time()-t0
