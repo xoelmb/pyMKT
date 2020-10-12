@@ -2,10 +2,10 @@ import pandas as pd
 import numpy as np
 import pathos.multiprocessing as mp
 import sfs
-import tests
-import time
+import emkt
+import amkt
 
-n_jobs = mp.cpu_count()
+n_jobs = mp.cpu_count()+2
 
 def mktest(genesets, data, tests, thresholds, populations):
      poldivs = sfs.parallel_sfs(genesets, data, tests, populations)
@@ -13,7 +13,7 @@ def mktest(genesets, data, tests, thresholds, populations):
      pars = par_builder(poldivs, tests, thresholds)
      par_expander = lambda x: mkt_caller(**x)
 
-     mypool = mp.Pool(n_jobs+2)
+     mypool = mp.Pool(n_jobs)
      results = mypool.map(par_expander, pars)
      mypool.terminate()
 
@@ -37,39 +37,23 @@ def par_builder(poldivs, tests, thresholds):
 
 
 def mkt_caller(daf, div, test, threshold, name=None, population=None):
-     test='nold_eMKT'
-     f = np.arange(0.025,0.985, 0.05)
-     if test == 'old_eMKT':
-          daf['daf'] = f
-          t0=time.time()
-          results = tests.old_emkt(daf, div, cutoff=threshold)
-          return    time.time()-t0
-     elif test == 'nold_eMKT':
-          t0=time.time()
-          results = tests.nold_emkt(daf, div, cutoff=threshold, f=f)
-          return    time.time()-t0
-     elif test == 'eMKT':
-          t0=time.time()
-          results = dict(tests.emkt(**daf, **div, threshold=threshold, f=f))
-          return time.time()-t0
-     elif test == 'v_eMKT':
-          t0=time.time()
-          results = dict(tests.v_emkt(**daf, **div, threshold=threshold, f=f))
-          return time.time()-t0
-     elif test == 'd_eMKT':
-          t0=time.time()
-          results = tests.emkt(**daf, **div, threshold=threshold, f=f)
-          return time.time()-t0
 
+     results = {}
+
+     if test == 'eMKT':
+          results = emkt.emkt(daf, div, cutoff=threshold)
+
+     elif test == 'aMKT':
+          results = amkt.amkt(daf, div, xlow=threshold, xhigh=1-threshold)
+          if 'alpha' not in results.keys():  # Uses covar matrix even if it's not valid, leads to bad CI's
+               results = amkt.amkt(daf, div, xlow=threshold, xhigh=1-threshold, check='ignore')
 
      else:
           raise RuntimeError('test not available')
-     
-          
 
-     for to_name in [name, population]:
-          if to_name:
-               results[to_name] = to_name
+     for k, v in zip(['name', 'population', 'test', 'threshold'], [name, population, test, threshold]):
+          if v:
+               results[k] = v
 
      return results
 

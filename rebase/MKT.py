@@ -64,8 +64,8 @@ class MKT:
         tests = self.tests_dft if not tests else tests
         thresholds = self.thresholds_dft if not thresholds else thresholds
         populations = self.populations_dft if not populations else populations
-    
-        self.last_result = mktest.mktest(genesets, data, tests, thresholds, populations)
+        
+        self.last_result = pd.DataFrame(mktest.mktest(genesets, data, tests, thresholds, populations))
 
         if label:
             self.last_result['label'] = label
@@ -76,10 +76,9 @@ class MKT:
 
     
     def _update_results(self, new):
-        return
 
-        # self.results = pd.concat([self.results, new])
-        # self.result_list.append(new)
+        self.results = pd.concat([self.results, new], axis=0, ignore_index=True)
+        self.result_list.append(new)
 
 
     def amkt(self, thresholds=None, populations=None, label=None):

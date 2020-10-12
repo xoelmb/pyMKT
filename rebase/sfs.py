@@ -4,32 +4,7 @@ import multiprocessing as mp
 # from numba import float64, int64, jitclass, unicode_type
 from numba import types, typed, jit
 
-n_jobs = mp.cpu_count()
-# specs_daf = [('daf', float64[::1]),
-#            ('Pi', int64[:]),
-#            ('P0', int64[:])]
-# specs_div = [('mi', int64),
-#            ('m0', int64),
-#            ('Di', int64),
-#            ('D0', int64)]
-
-
-# @jitclass(specs_daf)
-# class DAF:
-#     def __init__(self, Pi, P0, daf=np.arange(0.025, 0.980, 0.05)):
-#         self.daf = daf
-#         self.Pi = Pi
-#         self.P0 = P0
-
-
-# @jitclass(specs_div)
-# class DIV:
-#     def __init__(self, mi, m0, Di, D0):
-#         self.Di = Di
-#         self.D0 = D0
-#         self.mi = mi
-#         self.m0 = m0
-
+n_jobs = mp.cpu_count()+4
 
 def parallel_sfs(genesets, data, tests, populations):
     my_pool = mp.Pool(n_jobs)
@@ -53,10 +28,7 @@ def sfs(geneset, data, tests, populations):
 
 
 def makeSfs(data, cum=True):
-    div = typed.Dict.empty(
-        key_type=types.unicode_type,
-        value_type=types.int64,
-    )
+
     div = dict(mi=data.mi.sum(),
               Di=data.di.sum(),
               m0=data.m0.sum(),
@@ -68,9 +40,10 @@ def makeSfs(data, cum=True):
     if cum:
         daf_cum = dict(Pi=np.ascontiguousarray(np.cumsum(daf['Pi'][::-1])[::-1]),
                       P0=np.ascontiguousarray(np.cumsum(daf['P0'][::-1])[::-1]))
-        return dict((('daf', daf), ('daf_cum', daf_cum), ('div', div)))
+        return {'daf': daf, 'daf_cum': daf_cum, 'div': div}
+    
     else:
-        return dict((('daf', daf), ('div', div)))
+        return {'daf': daf, 'div': div}
 
 
 

@@ -472,9 +472,10 @@ def mkt_on_daf(daf, div, test, par):
     results[label_col] = par
 
     return results
-#
+
+
 # ## DEBUGGING ###
-#
+
 # root_dir = '/home/xoel/Escritorio/mastersthesis/'
 # data_dir = root_dir + 'data/'
 # scripts_dir = root_dir + 'scripts/'
@@ -483,7 +484,7 @@ def mkt_on_daf(daf, div, test, par):
 # genes = pd.read_csv(data_dir + 'lists/exp_aa.csv', index_col=0, header=[0, 1])
 # data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
 
-#
-#
-# debug = mkt_on_df(genes.iloc[:, 0:16], data, 'aa', pops=['AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
-#           do_trims=[True, False], bootstrap=False, b_size=100, b_reps=100)
+
+
+# debug = mkt_on_df(genes, data, 'test', pops=['SAS', 'EAS', 'AFR', 'EUR'], tests=['aMKT', 'eMKT'], cutoffs=[0.05, 0.15],
+#           do_trims=[True, False])

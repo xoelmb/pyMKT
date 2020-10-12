@@ -15,4 +15,3 @@ ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
 
 a = MKT.MKT(genes, ph)
 r = a.test()
-np.array(r).sum()
