@@ -4,3 +4,5 @@
 __pycache__/
 
 .vscode/
+rebase/state.log
+rebase/memory.log
