@@ -2,10 +2,11 @@
 
 import pandas as pd
 import numpy as np
-import multiprocessing as mp
-import numba
-from numba import jitclass, types
 import mktest
+import multiprocessing as mp
+import psutil
+
+
 
 class MKT:
     """
@@ -16,9 +17,13 @@ class MKT:
     populations_dft = ['AFR', 'EUR', 'EAS', 'SAS']
     tests_dft = ['eMKT', 'aMKT']
     thresholds_dft = [[0.05, 0.15], [0, 0.1]]
+    bootstrap_lim_dft = 50
 
     
     def __init__(self, genes, poldiv):
+        self.mean_genes = genes.sum(axis=0).mean()
+        self.nsamples = len(genes.columns.values)
+        self.bs_factor = self.mean_genes*self.nsamples
         self.genesets = self._get_genes(genes)
         self.poldiv = self._get_poldiv(poldiv)
         self.results = pd.DataFrame(index=[], columns=self.columns, dtype=self.dtypes)
@@ -91,24 +96,40 @@ class MKT:
         return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
 
 
-    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None):
-        
-        self.bs_genes = tuple(self._aux_bs(geneset, n=n) for geneset in self.genesets)
+    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5e9):
 
-        return self.test(genesets=self.bs_genes, tests=tests, thresholds=thresholds, populations=populations, label=label)
-        
-
-    def _aux_bs(self, geneset, n=599):
-
-        bs_geneset = [(geneset[0],
-                      np.random.choice(geneset[1], size=len(geneset[1]), replace=True)) for _ in range(n)]
-    
-        return bs_geneset
-
+        def compute_lim(max_ram=max_ram, factor=None, intercept=1.51294, slope=1.08):
             
-# @jitclass([('name', types.string),
-#            ('geneset', numba.types.Array(types.UnicodeCharSeq(15), 1, 'C'))])
-# class Geneset:
-#     def __init__(self, name, geneset):
-#         self.name = name
-#         self.geneset = geneset
+            if not factor: factor = self.bs_factor
+            return int(10**((np.log10(max_ram)-intercept)/slope - np.log10(factor)))
+
+
+        def aux(geneset, n=599):
+            bs_geneset = np.random.choice(geneset[1], size=(n, len(geneset[1])), replace=True)
+            return [(geneset[0], x) for x in bs_geneset]
+
+
+        results = pd.DataFrame()
+        lim = compute_lim(max_ram)
+        # print(lim)
+                
+        if n >= lim:
+            print(f'Memory requirements exceed max_ram ({round(max_ram/10**9, 2)} GB).\nSplitting {n} repetitions in sets of {lim}.\n')
+            for i in range(n//lim):
+                print(f'Running {i*lim}-{(i+1)*lim}')
+                bs_genesets = [aux(geneset, lim) for geneset in self.genesets]
+                bs_genesets = [item for sublist in bs_genesets for item in sublist]
+                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label)
+                results = pd.concat([results, last], axis=0, ignore_index=True)
+            print(f'Running {(n//lim)*lim}-{n}')
+
+        bs_genesets = [aux(geneset, n%lim) for geneset in self.genesets]
+        # bs_genesets = [aux(geneset, n) for geneset in self.genesets]
+        bs_genesets = [item for sublist in bs_genesets for item in sublist]
+        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label)
+        self.last_result = pd.concat([results, last], axis=0, ignore_index=True)
+        
+        return self.last_result
+
+
+

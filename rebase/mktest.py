@@ -5,35 +5,23 @@ import sfs
 import emkt
 import amkt
 
-n_jobs = mp.cpu_count()+2
+n_jobs = mp.cpu_count()+mp.cpu_count()//2
 
 def mktest(genesets, data, tests, thresholds, populations):
-     poldivs = sfs.parallel_sfs(genesets, data, tests, populations)
-     
-     pars = par_builder(poldivs, tests, thresholds)
+     print("· [1/2] Computing polymorphism & divergence ", end='')
+     poldivs = sfs.parallel_sfs(genesets, data, tests, thresholds, populations)
+     print('[DONE]')
      par_expander = lambda x: mkt_caller(**x)
 
+
+     print("· Running tests [2/2] ", end='')
      mypool = mp.Pool(n_jobs)
-     results = mypool.map(par_expander, pars)
+     results = mypool.map(par_expander, poldivs)
      mypool.terminate()
+     print('DONE')
+
 
      return results
-
-
-def par_builder(poldivs, tests, thresholds):
-     pars = []
-     for t, ths in zip(tests, thresholds):
-          use_daf = 'daf_cum' if t == 'aMKT' else 'daf'
-          for th in ths:
-               for pd in poldivs:
-                    par = dict(name=pd[0],
-                               population=pd[1],
-                               daf=pd[2][use_daf],
-                               div=pd[2]['div'],
-                               test=t,
-                               threshold=th)
-                    pars.append(par)
-     return pars
 
 
 def mkt_caller(daf, div, test, threshold, name=None, population=None):

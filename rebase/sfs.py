@@ -4,27 +4,38 @@ import multiprocessing as mp
 # from numba import float64, int64, jitclass, unicode_type
 from numba import types, typed, jit
 
-n_jobs = mp.cpu_count()+4
+n_jobs = mp.cpu_count()
 
-def parallel_sfs(genesets, data, tests, populations):
+def parallel_sfs(genesets, data, tests, thresholds, populations):
     my_pool = mp.Pool(n_jobs)
-    pars = [(geneset, data, tests, populations) for geneset in genesets]
+    pars = [(geneset, data, tests, thresholds, populations) for geneset in genesets]
     results = my_pool.starmap(sfs, pars)
     my_pool.terminate()
     poldivs = tuple(item for sublist in results for item in sublist)
     return poldivs
     
     
-def sfs(geneset, data, tests, populations):
+def sfs(geneset, data, tests, thresholds, populations):
+
     cum = True if 'aMKT' in tests else False
-    poldiv = []
+    poldivs = []
     
     for pop in populations:
         subdata = data[(data.id.isin(geneset[1])) &
-                                           (data['pop'] == pop)]
-        poldiv.append((geneset[0], pop, makeSfs(subdata, cum)))
-        
-    return poldiv
+                       (data['pop'] == pop)]
+        pd = makeSfs(subdata, cum)
+
+        for t, ths in zip(tests, thresholds):
+            use_daf = 'daf_cum' if t == 'aMKT' else 'daf'
+            for th in ths:
+                poldivs.append(dict(name=geneset[0],
+                                    population=pop,
+                                    daf=pd[use_daf],
+                                    div=pd['div'],
+                                    test=t,
+                                    threshold=th))
+
+    return poldivs
 
 
 def makeSfs(data, cum=True):
@@ -44,13 +55,3 @@ def makeSfs(data, cum=True):
     
     else:
         return {'daf': daf, 'div': div}
-
-
-
-### DEBUGGING ###
-# import pandas as pd
-# root_dir = '/home/xoel/Escritorio/mastersthesis/'
-# data_dir = root_dir + 'data/'
-
-# data = pd.read_csv(data_dir + 'metaPops.tsv', sep='\t')
-# test = data.iloc[0:50, :]
