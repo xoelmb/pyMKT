@@ -98,7 +98,7 @@ def amkt_fit(daf, div, xlow=0, xhigh=1, f=np.arange(0.025,0.985,0.05), check='ra
     trim = ((f >= xlow) & (f <= xhigh))
 
     # Two-step model fit:
-    # First bounded fit:
+    ## First bounded fit:
     try:
         popt, pcov = optimize.curve_fit(exp_model, f[trim], alpha[trim],
                                         bounds=([-1, -1, 1], [1, 1, 10]))
@@ -108,7 +108,7 @@ def amkt_fit(daf, div, xlow=0, xhigh=1, f=np.arange(0.025,0.985,0.05), check='ra
         popt = None
         pcov = None
 
-    # Second fit using initially guessed values or unbounded fit:
+    ## Second fit using initially guessed values or unbounded fit:
     for method in ['lm', 'trf', 'dogbox']:
         try:
             popt, pcov = optimize.curve_fit(exp_model, f[trim], alpha[trim],

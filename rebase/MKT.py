@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import mktest
 import multiprocessing as mp
-import psutil
 
 
 

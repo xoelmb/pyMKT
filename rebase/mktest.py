@@ -14,11 +14,11 @@ def mktest(genesets, data, tests, thresholds, populations):
      par_expander = lambda x: mkt_caller(**x)
 
 
-     print("· Running tests [2/2] ", end='')
+     print("· [2/2] Running tests ", end='')
      mypool = mp.Pool(n_jobs)
      results = mypool.map(par_expander, poldivs)
      mypool.terminate()
-     print('DONE')
+     print('[DONE]')
 
 
      return results
