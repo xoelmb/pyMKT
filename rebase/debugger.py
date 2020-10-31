@@ -10,23 +10,33 @@ import numpy as np
 import MKT
 from timeit import timeit
 
+#################################################################################
 pops=['EUR', 'AFR', 'EAS','SAS']
 tests=['aMKT']
 thresholds=[[0,0.1]]
+#################################################################################
 
+
+#################################################################################
 genes = pd.read_csv(lists_dir+'exp_aa.csv', header=[0,1], index_col=0)
 genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
 ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
+#################################################################################
 
 
+#################################################################################
 # a = MKT.MKT(genes, ph, debug_mode='fast')
 a = MKT.MKT(genes, ph)
 
 r = a.test()
 # r = a.bootstrap(n=100, max_ram=10)
+#################################################################################
 
 
-##### CHECK HOW CHUNKSIZE AFFECTS PERFORMANCE ####
+
+#################################################################################
+#################### CHECK HOW CHUNKSIZE AFFECTS PERFORMANCE ####################
+#################################################################################
 import time
 import matplotlib.pyplot as plt
 
@@ -45,9 +55,20 @@ t0=time.time()
 a.test(populations=pops, tests=tests, thresholds=thresholds, c=100)
 a.bootstrap(n=70, populations=pops, tests=tests, thresholds=thresholds, c=None, max_ram=10)
 time.time()-t0
+#################################################################################
+#################################################################################
+#################################################################################
 
 
-####### CHECK IF RESULTS ARE WHAT THEY SHOULD FROM VALIDATED DATA #######
+
+
+
+
+
+
+#################################################################################
+########### CHECK IF RESULTS ARE WHAT THEY SHOULD FROM VALIDATED DATA ###########
+#################################################################################
 val_file = '/home/xoel/Escritorio/pyMKT/val_results.csv'
 val_results = pd.read_csv(val_file)
 val_results['name'] = val_results[['stage','region']].apply(lambda x: '_'.join(x), axis=1)
@@ -66,7 +87,9 @@ eps=0.00001
 diffs[diffs<=eps] = 0
 diffs[diffs.isna()] = 0
 diffs.describe()
-#########################################################################
+#################################################################################
+#################################################################################
+#################################################################################
 
 
 
