@@ -19,10 +19,9 @@ class MKT:
     bootstrap_lim_dft = 50
 
     
-    def __init__(self, genes, popdata, debug_mode=False):
-        self.genes = genes
+    def __init__(self, genes, popdata, frac=False):
 
-        if debug_mode: self._set_debug(mode=debug_mode)
+        self.genes = genes.sample(frac=frac, axis=1) if frac else genes
 
         self.mean_genes = genes.sum(axis=0).mean()
         self.nsamples = len(genes.columns.values)
@@ -34,12 +33,12 @@ class MKT:
         self.results = pd.DataFrame(index=[], columns=self.columns, dtype=self.dtypes)
         self.result_list = []
 
-    def _set_debug(self, mode='fast'):
-        if mode == 'fast':
-            self.populations_dft = ['AFR']
-            self.tests_dft = ['eMKT']
-            self.thresholds_dft = [[0.05]]
-            self.genes = self.genes.sample(frac=0.1)
+
+    def _set_debug(self, mode=0.1):
+        self.populations_dft = ['AFR']
+        self.tests_dft = ['eMKT']
+        self.thresholds_dft = [[0.15]]
+        self.genes = self.genes.sample(frac=mode, axis=1)
 
 
 
@@ -67,23 +66,24 @@ class MKT:
 
         new = popdata.astype(col_types)
 
-        new[[f'P0{i}' for i in range(20)]] = new['daf0f'].str.split(';',expand=True).astype(int)
         new[[f'Pi{i}' for i in range(20)]] = new['daf0f'].str.split(';',expand=True).astype(int)
+        new[[f'P0{i}' for i in range(20)]] = new['daf4f'].str.split(';',expand=True).astype(int)
         
         return dict(list(new.groupby('pop')))
     
 
-    def _daf_divider(self, dafxf):
-        return list(map(int, dafxf.split(';')))
-    
-    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None):
+    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None, v=True, c=20):
         genesets = self.genesets if not genesets else genesets
         popdata = self.popdata if not popdata else popdata
         tests = self.tests_dft if not tests else tests
         thresholds = self.thresholds_dft if not thresholds else thresholds
         populations = self.populations_dft if not populations else populations
+
+        red_popdata = {pop: popdata[pop] for pop in populations}
         
-        self.last_result = pd.DataFrame(mktest.mktest(genesets, popdata, tests, thresholds, populations))
+        # return mktest.mktest(genesets, red_popdata, tests, thresholds)
+
+        self.last_result = pd.DataFrame(mktest.mktest(genesets, red_popdata, tests, thresholds, v=v, c=c))
 
         if label:
             self.last_result['label'] = label
@@ -109,7 +109,9 @@ class MKT:
         return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
 
 
-    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5e9):
+    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5, c=30):
+        
+        max_ram = max_ram*1e9
 
         def compute_lim(max_ram=max_ram, factor=None, intercept=1.51294, slope=1.08):
             
@@ -132,14 +134,14 @@ class MKT:
                 print(f'Running {i*lim}-{(i+1)*lim}')
                 bs_genesets = [aux(geneset, lim) for geneset in self.genesets]
                 bs_genesets = [item for sublist in bs_genesets for item in sublist]
-                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label)
+                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label, c=c)
                 results = pd.concat([results, last], axis=0, ignore_index=True)
             print(f'Running {(n//lim)*lim}-{n}')
 
         bs_genesets = [aux(geneset, n%lim) for geneset in self.genesets]
         # bs_genesets = [aux(geneset, n) for geneset in self.genesets]
         bs_genesets = [item for sublist in bs_genesets for item in sublist]
-        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label)
+        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label, c=c)
         self.last_result = pd.concat([results, last], axis=0, ignore_index=True)
         
         return self.last_result

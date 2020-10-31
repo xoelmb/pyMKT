@@ -4,27 +4,35 @@ import pathos.multiprocessing as mp
 import sfs
 import emkt
 import amkt
+import sys, time
 
 n_jobs = mp.cpu_count()#+mp.cpu_count()//2
 
-def mktest(genesets, popdata, tests, thresholds, populations):
-     print("· [1/2] Computing polymorphism & divergence ", end='')
-     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, populations)
-     print('[DONE]')
+def mktest(genesets, popdata, tests, thresholds, v=True, c=20):
+
+     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, v=True, c=c)
+
+     # return poldivs
+
      par_expander = lambda x: mkt_caller(**x)
-
-     print("· [2/2] Running tests ", end='')
      mypool = mp.Pool(n_jobs)
-     results = list(mypool.imap_unordered(par_expander, poldivs, chunksize=30))
-     # results = mypool.map(par_expander, poldivs)
-     mypool.terminate()
-     print('[DONE]')
 
+     if v:
+          n=len(poldivs)
+          results = []
+          for i, r in enumerate(mypool.imap_unordered(par_expander, poldivs, chunksize=50), 1):
+               results.append(r)
+               sys.stderr.write(f'\r· [2/2] Running tests {round(i/n*100,2)}%')
+          sys.stderr.write('\r· [2/2] Running tests [DONE]\n')
+     else:
+          results = list(mypool.imap_unordered(par_expander, poldivs, chunksize=30))
+
+     mypool.terminate()
 
      return results
 
 
-def mkt_caller(daf, div, test, threshold, name=None, population=None):
+def mkt_caller(daf, div, test, threshold, name=None, population=None, ngenes=None):
 
      results = {}
 
@@ -39,7 +47,7 @@ def mkt_caller(daf, div, test, threshold, name=None, population=None):
      else:
           raise RuntimeError('test not available')
 
-     for k, v in zip(['name', 'population', 'test', 'threshold'], [name, population, test, threshold]):
+     for k, v in zip(['name', 'population', 'test', 'threshold', 'ngenes'], [name, population, test, threshold, ngenes]):
           if v:
                results[k] = v
 

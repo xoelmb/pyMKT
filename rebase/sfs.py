@@ -1,18 +1,27 @@
 import numpy as np
 import multiprocessing as mp
 import functools
+import sys
 
 n_jobs = mp.cpu_count()
 
-def parallel_sfs(genesets, popdata, tests, thresholds, progress=True):
+def parallel_sfs(genesets, popdata, tests, thresholds, v=True, c=30):
     
     mypool = mp.Pool(n_jobs)
     
     func = functools.partial(sfs, popdata=popdata, tests=tests, thresholds=thresholds)
-    results = list(mypool.imap_unordered(func, genesets, chunksize=20))
+
+    if v:
+        n=len(genesets)
+        results = []
+        for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=100), 1):
+            results.append(r)
+            sys.stderr.write(f'\r· [1/2] Parsing population data {round(i/n*100,2)}%')
+        sys.stderr.write('\r· [1/2] Parsing population data [DONE]\n')
+    else:
+        results = list(mypool.imap_unordered(func, genesets, chunksize=30))
 
     mypool.terminate()
-    
     poldivs = tuple(item for sublist in results for item in sublist)
     
     return poldivs
@@ -36,8 +45,8 @@ def sfs(geneset, popdata, tests, thresholds):
                                     daf=poldiv_i[use_daf],
                                     div=poldiv_i['div'],
                                     test=t,
-                                    threshold=th))
-
+                                    threshold=th,
+                                    ngenes=len(data.index)))
     return poldivs
 
 
@@ -48,13 +57,12 @@ def makeSfs(data, cum=True):
               m0=data['m0'].sum(),
               D0=data['d0'].sum())
 
-    daf = dict(Pi=data[[f'P0{i}' for i in range(20)]].sum().to_numpy(),
-               P0=data[[f'Pi{i}' for i in range(20)]].sum().to_numpy())
+    daf = dict(Pi=data[[f'Pi{i}' for i in range(20)]].sum().to_numpy(),
+               P0=data[[f'P0{i}' for i in range(20)]].sum().to_numpy())
 
     if cum:
         daf_cum = dict(Pi=np.cumsum(daf['Pi'][::-1])[::-1],
                       P0=np.cumsum(daf['P0'][::-1])[::-1])
         return {'daf': daf, 'daf_cum': daf_cum, 'div': div}
-    
-    else:
-        return {'daf': daf, 'div': div}
+
+    return {'daf': daf, 'div': div}
