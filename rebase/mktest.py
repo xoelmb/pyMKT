@@ -7,9 +7,9 @@ import amkt
 
 n_jobs = mp.cpu_count()+mp.cpu_count()//2
 
-def mktest(genesets, data, tests, thresholds, populations):
+def mktest(genesets, popdata, tests, thresholds, populations):
      print("· [1/2] Computing polymorphism & divergence ", end='')
-     poldivs = sfs.parallel_sfs(genesets, data, tests, thresholds, populations)
+     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, populations)
      print('[DONE]')
      par_expander = lambda x: mkt_caller(**x)
 

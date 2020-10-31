@@ -15,6 +15,7 @@ genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
 ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
 
 
+a = MKT.MKT(genes, ph, debug_mode='fast')
 a = MKT.MKT(genes, ph)
 
 r = a.test()

@@ -19,14 +19,28 @@ class MKT:
     bootstrap_lim_dft = 50
 
     
-    def __init__(self, genes, poldiv):
+    def __init__(self, genes, popdata, debug_mode=False):
+        self.genes = genes
+
+        if debug_mode: self._set_debug(mode=debug_mode)
+
         self.mean_genes = genes.sum(axis=0).mean()
         self.nsamples = len(genes.columns.values)
         self.bs_factor = self.mean_genes*self.nsamples
+
         self.genesets = self._get_genes(genes)
-        self.poldiv = self._get_poldiv(poldiv)
+        self.popdata = self._get_popdata(popdata)
+
         self.results = pd.DataFrame(index=[], columns=self.columns, dtype=self.dtypes)
         self.result_list = []
+
+    def _set_debug(self, mode='fast'):
+        if mode == 'fast':
+            self.populations_dft = ['AFR']
+            self.tests_dft = ['eMKT']
+            self.thresholds_dft = [[0.05]]
+            self.genes = self.genes.sample(frac=0.1)
+
 
 
     def _get_genes(self, genes):
@@ -47,29 +61,29 @@ class MKT:
         return (col.name, np.array(col.index[col == 1].values, str))
     
     
-    def _get_poldiv(self, poldiv):
+    def _get_popdata(self, popdata):
 
         col_types = dict(list(map(lambda x: (x, int),['mi', 'm0', 'pi', 'p0', 'di', 'd0'])))
 
-        new = poldiv.astype(col_types)
-        
-        new['daf0f'] = new['daf0f'].apply(self._daf_divider)
-        new['daf4f'] = new['daf4f'].apply(self._daf_divider)
+        new = popdata.astype(col_types)
 
-        return new
+        new[[f'P0{i}' for i in range(20)]] = new['daf0f'].str.split(';',expand=True).astype(int)
+        new[[f'Pi{i}' for i in range(20)]] = new['daf0f'].str.split(';',expand=True).astype(int)
+        
+        return dict(list(new.groupby('pop')))
     
 
     def _daf_divider(self, dafxf):
         return list(map(int, dafxf.split(';')))
     
-    def test(self, genesets=None, data=None, tests=None, thresholds=None, populations=None, label=None):
+    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None):
         genesets = self.genesets if not genesets else genesets
-        data = self.poldiv if not data else data
+        popdata = self.popdata if not popdata else popdata
         tests = self.tests_dft if not tests else tests
         thresholds = self.thresholds_dft if not thresholds else thresholds
         populations = self.populations_dft if not populations else populations
         
-        self.last_result = pd.DataFrame(mktest.mktest(genesets, data, tests, thresholds, populations))
+        self.last_result = pd.DataFrame(mktest.mktest(genesets, popdata, tests, thresholds, populations))
 
         if label:
             self.last_result['label'] = label
