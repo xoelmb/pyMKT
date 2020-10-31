@@ -1,18 +1,24 @@
 import numpy as np
 import multiprocessing as mp
+import functools
 
 n_jobs = mp.cpu_count()
 
-def parallel_sfs(genesets, popdata, tests, thresholds, populations):
-    my_pool = mp.Pool(n_jobs)
-    pars = [(geneset, popdata, tests, thresholds, populations) for geneset in genesets]
-    results = my_pool.starmap(sfs, pars)
-    my_pool.terminate()
+def parallel_sfs(genesets, popdata, tests, thresholds, progress=True):
+    
+    mypool = mp.Pool(n_jobs)
+    
+    func = functools.partial(sfs, popdata=popdata, tests=tests, thresholds=thresholds)
+    results = list(mypool.imap_unordered(func, genesets, chunksize=20))
+
+    mypool.terminate()
+    
     poldivs = tuple(item for sublist in results for item in sublist)
+    
     return poldivs
     
     
-def sfs(geneset, popdata, tests, thresholds, populations):
+def sfs(geneset, popdata, tests, thresholds):
 
     cum = True if 'aMKT' in tests else False
     poldivs = []

@@ -5,7 +5,7 @@ import sfs
 import emkt
 import amkt
 
-n_jobs = mp.cpu_count()+mp.cpu_count()//2
+n_jobs = mp.cpu_count()#+mp.cpu_count()//2
 
 def mktest(genesets, popdata, tests, thresholds, populations):
      print("· [1/2] Computing polymorphism & divergence ", end='')
@@ -13,10 +13,10 @@ def mktest(genesets, popdata, tests, thresholds, populations):
      print('[DONE]')
      par_expander = lambda x: mkt_caller(**x)
 
-
      print("· [2/2] Running tests ", end='')
      mypool = mp.Pool(n_jobs)
-     results = mypool.map(par_expander, poldivs)
+     results = list(mypool.imap_unordered(par_expander, poldivs, chunksize=30))
+     # results = mypool.map(par_expander, poldivs)
      mypool.terminate()
      print('[DONE]')
 
