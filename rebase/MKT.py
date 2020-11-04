@@ -72,7 +72,7 @@ class MKT:
         return dict(list(new.groupby('pop')))
     
 
-    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None, v=True, c=20):
+    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None, bootstrap=False, reps=100, v=True, c=25):
         genesets = self.genesets if not genesets else genesets
         popdata = self.popdata if not popdata else popdata
         tests = self.tests_dft if not tests else tests
@@ -83,7 +83,7 @@ class MKT:
         
         # return mktest.mktest(genesets, red_popdata, tests, thresholds)
 
-        self.last_result = pd.DataFrame(mktest.mktest(genesets, red_popdata, tests, thresholds, v=v, c=c))
+        self.last_result = pd.DataFrame(mktest.mktest(genesets, red_popdata, tests, thresholds, bootstrap=bootstrap, reps=reps, v=v, c=c))
 
         if label:
             self.last_result['label'] = label
@@ -109,7 +109,7 @@ class MKT:
         return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
 
 
-    def bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5, c=30):
+    def _legacy_bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5): #, c=30):
         
         max_ram = max_ram*1e9
 
@@ -126,7 +126,7 @@ class MKT:
 
         results = pd.DataFrame()
         lim = compute_lim(max_ram)
-        # print(lim)
+        print(lim)
                 
         if n >= lim:
             print(f'Memory requirements exceed max_ram ({round(max_ram/10**9, 2)} GB).\nSplitting {n} repetitions in sets of {lim}.\n')
@@ -134,14 +134,14 @@ class MKT:
                 print(f'Running {i*lim}-{(i+1)*lim}')
                 bs_genesets = [aux(geneset, lim) for geneset in self.genesets]
                 bs_genesets = [item for sublist in bs_genesets for item in sublist]
-                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label, c=c)
+                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
                 results = pd.concat([results, last], axis=0, ignore_index=True)
             print(f'Running {(n//lim)*lim}-{n}')
 
         bs_genesets = [aux(geneset, n%lim) for geneset in self.genesets]
         # bs_genesets = [aux(geneset, n) for geneset in self.genesets]
         bs_genesets = [item for sublist in bs_genesets for item in sublist]
-        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label, c=c)
+        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
         self.last_result = pd.concat([results, last], axis=0, ignore_index=True)
         
         return self.last_result

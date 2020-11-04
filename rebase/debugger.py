@@ -9,13 +9,7 @@ import pandas as pd
 import numpy as np
 import MKT
 from timeit import timeit
-
-#################################################################################
-pops=['EUR', 'AFR', 'EAS','SAS']
-tests=['aMKT']
-thresholds=[[0,0.1]]
-#################################################################################
-
+import time
 
 #################################################################################
 genes = pd.read_csv(lists_dir+'exp_aa.csv', header=[0,1], index_col=0)
@@ -23,13 +17,32 @@ genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
 ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
 #################################################################################
 
+#################################################################################
+############################### GENERAL DEBUGGING ###############################
+#################################################################################
+pops=['EUR']
+tests=['eMKT']
+thresholds=[[0]]
+
+MKT.MKT.populations_dft = pops
+MKT.MKT.tests_dft = tests
+MKT.MKT.thresholds_dft = thresholds
+#################################################################################
 
 #################################################################################
 # a = MKT.MKT(genes, ph, debug_mode='fast')
 a = MKT.MKT(genes, ph)
-
+t0=time.time()
 r = a.test()
-# r = a.bootstrap(n=100, max_ram=10)
+time.sleep(1)
+print(time.time()-t0)
+
+t0=time.time()
+r = a.test(bootstrap=True, reps=10)
+time.sleep(1)
+print(time.time()-t0)
+
+r = a.bootstrap(n=2, max_ram=10)
 #################################################################################
 
 
@@ -42,14 +55,18 @@ import matplotlib.pyplot as plt
 
 a = MKT.MKT(genes, ph, frac=0.1)
 r = []
-pos = [15,20,25,45,50]
+pos = [1,15,25,50, 100, 500]
+reps = [1, 50, 100, 500, 1000]
 for c in pos:
-    t0=time.time()
-    a.bootstrap(n=70, populations=pops, tests=tests, thresholds=thresholds, c=c, max_ram=10)
-    r.append(dict(c=c, t=time.time()-t0))
+    print(c)
+    for rep in reps:
+        print(rep)
+        t0=time.time()
+        a.test(bootstrap=True, reps=rep, c=c)
+        r.append(dict(r=rep, c=c, t=time.time()-t0))
 
 r = pd.DataFrame(r)
-plt.plot(r['c'], r['t'])
+plt.plot(r['r'], r['t'])
 
 t0=time.time()
 a.test(populations=pops, tests=tests, thresholds=thresholds, c=100)
@@ -69,6 +86,21 @@ time.time()-t0
 #################################################################################
 ########### CHECK IF RESULTS ARE WHAT THEY SHOULD FROM VALIDATED DATA ###########
 #################################################################################
+
+#################################################################################
+pops=['EUR', 'AFR', 'EAS', 'SAS']
+tests=['eMKT', 'aMKT']
+thresholds=[[0.05, 0.15], [0, 0.1]]
+
+MKT.MKT.populations_dft = pops
+MKT.MKT.tests_dft = tests
+MKT.MKT.thresholds_dft = thresholds
+#################################################################################
+
+a = MKT.MKT(genes, ph)
+r = a.test()
+
+
 val_file = '/home/xoel/Escritorio/pyMKT/val_results.csv'
 val_results = pd.read_csv(val_file)
 val_results['name'] = val_results[['stage','region']].apply(lambda x: '_'.join(x), axis=1)
@@ -108,10 +140,10 @@ diffs.describe()
 #         for t in[['eMKT']]:
 #             for th in [[[0]], [[0, 0.1]]]:
 
-#                 MKT.MKT.bootstrap_lim_dft = lim
-#                 MKT.MKT.populations_dft = pop
-#                 MKT.MKT.tests_dft = t
-#                 MKT.MKT.thresholds_dft = th
+                # MKT.MKT.bootstrap_lim_dft = lim
+                # MKT.MKT.populations_dft = pop
+                # MKT.MKT.tests_dft = t
+                # MKT.MKT.thresholds_dft = th
 #                 
 
 #                 setup='from __main__ import a'

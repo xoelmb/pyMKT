@@ -8,11 +8,11 @@ import sys, time
 
 n_jobs = mp.cpu_count()#+mp.cpu_count()//2
 
-def mktest(genesets, popdata, tests, thresholds, v=True, c=20):
+def mktest(genesets, popdata, tests, thresholds, bootstrap=False, reps=100, v=True, c=25):
 
-     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, v=True, c=c)
+     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, bootstrap=bootstrap, reps=reps, v=v, c=25)
 
-     # return poldivs
+     return poldivs
 
      par_expander = lambda x: mkt_caller(**x)
      mypool = mp.Pool(n_jobs)

@@ -5,19 +5,20 @@ import sys
 
 n_jobs = mp.cpu_count()
 
-def parallel_sfs(genesets, popdata, tests, thresholds, v=True, c=30):
+
+def parallel_sfs(genesets, popdata, tests, thresholds, bootstrap=False, reps=100, v=True, c=25):
     
     mypool = mp.Pool(n_jobs)
     
-    func = functools.partial(sfs, popdata=popdata, tests=tests, thresholds=thresholds)
+    func = functools.partial(sfs, popdata=popdata, tests=tests, thresholds=thresholds, bootstrap=bootstrap, reps=reps)
 
     if v:
         n=len(genesets)
         results = []
-        for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=100), 1):
+        for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=25), 1):
             results.append(r)
-            sys.stderr.write(f'\r· [1/2] Parsing population data {round(i/n*100,2)}%')
-        sys.stderr.write('\r· [1/2] Parsing population data [DONE]\n')
+            sys.stderr.write(f'\r· [1/2] Parsing {"and bootstrapping " if bootstrap else ""}population data {round(i/n*100,2)}%')
+        sys.stderr.write(f'\r· [1/2] Parsing {"and bootstrapping " if bootstrap else ""}population data [DONE]\n')
     else:
         results = list(mypool.imap_unordered(func, genesets, chunksize=30))
 
@@ -27,7 +28,7 @@ def parallel_sfs(genesets, popdata, tests, thresholds, v=True, c=30):
     return poldivs
     
     
-def sfs(geneset, popdata, tests, thresholds):
+def sfs(geneset, popdata, tests, thresholds, bootstrap=False, reps=100):
 
     cum = True if 'aMKT' in tests else False
     poldivs = []
@@ -35,18 +36,20 @@ def sfs(geneset, popdata, tests, thresholds):
     for pop, data in popdata.items():
         data = data[data.id.isin(geneset[1])]
 
-        poldiv_i = makeSfs(data, cum)
+        for _ in range(reps if bootstrap else 1):
+            idata = data.sample(len(data), replace=True) if bootstrap else data
+            poldiv_i = makeSfs(idata, cum)
 
-        for t, ths in zip(tests, thresholds):
-            use_daf = 'daf_cum' if t == 'aMKT' else 'daf'
-            for th in ths:
-                poldivs.append(dict(name=geneset[0],
-                                    population=pop,
-                                    daf=poldiv_i[use_daf],
-                                    div=poldiv_i['div'],
-                                    test=t,
-                                    threshold=th,
-                                    ngenes=len(data.index)))
+            for t, ths in zip(tests, thresholds):
+                use_daf = 'daf_cum' if t == 'aMKT' else 'daf'
+                for th in ths:
+                    poldivs.append(dict(name=geneset[0],
+                                        population=pop,
+                                        daf=poldiv_i[use_daf],
+                                        div=poldiv_i['div'],
+                                        test=t,
+                                        threshold=th,
+                                        ngenes=len(data.index)))
     return poldivs
 
 
@@ -66,3 +69,4 @@ def makeSfs(data, cum=True):
         return {'daf': daf, 'daf_cum': daf_cum, 'div': div}
 
     return {'daf': daf, 'div': div}
+
