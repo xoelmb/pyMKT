@@ -72,7 +72,11 @@ class MKT:
         return dict(list(new.groupby('pop')))
     
 
-    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None, bootstrap=False, reps=100, v=True, c=25):
+    def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None,
+             label=None, reps=100, permute=False, bootstrap=False,
+             permute_vars_alone=False, permute_vars_and_constant=True,
+             variable_genes=None, v=True, c=25):
+
         genesets = self.genesets if not genesets else genesets
         popdata = self.popdata if not popdata else popdata
         tests = self.tests_dft if not tests else tests
@@ -81,9 +85,20 @@ class MKT:
 
         red_popdata = {pop: popdata[pop] for pop in populations}
         
-        # return mktest.mktest(genesets, red_popdata, tests, thresholds)
-
-        self.last_result = pd.DataFrame(mktest.mktest(genesets, red_popdata, tests, thresholds, bootstrap=bootstrap, reps=reps, v=v, c=c))
+        if permute:
+            genesets = np.array([np.array([g[0],g[1], variable_genes]) for g in genesets])
+            
+        self.last_result = pd.DataFrame(mktest.mktest(genesets,
+                                                      red_popdata,
+                                                      tests,
+                                                      thresholds,
+                                                      permute=permute,
+                                                      bootstrap=bootstrap,
+                                                      reps=reps,
+                                                      v=v,
+                                                      permute_vars_alone=permute_vars_alone,
+                                                      permute_vars_and_constant=permute_vars_and_constant,
+                                                      c=c))
 
         if label:
             self.last_result['label'] = label
@@ -109,42 +124,46 @@ class MKT:
         return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
 
 
-    def _legacy_bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5): #, c=30):
+    # def permute(reps=100, variable_genes=None, vars_alone=False, vars_and_constant=True, 
+    #     test(genesets=None, popdata=None, tests=None, thresholds=None, populations=None, label=None, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True, c=25):
         
-        max_ram = max_ram*1e9
 
-        def compute_lim(max_ram=max_ram, factor=None, intercept=1.51294, slope=1.08):
+    # def _legacy_bootstrap(self, n=599, tests=None, thresholds=None, populations=None, label=None, max_ram=5): #, c=30):
+        
+    #     max_ram = max_ram*1e9
+
+    #     def compute_lim(max_ram=max_ram, factor=None, intercept=1.51294, slope=1.08):
             
-            if not factor: factor = self.bs_factor
-            return int(10**((np.log10(max_ram)-intercept)/slope - np.log10(factor)))
+    #         if not factor: factor = self.bs_factor
+    #         return int(10**((np.log10(max_ram)-intercept)/slope - np.log10(factor)))
 
 
-        def aux(geneset, n=599):
-            bs_geneset = np.random.choice(geneset[1], size=(n, len(geneset[1])), replace=True)
-            return [(geneset[0], x) for x in bs_geneset]
+    #     def aux(geneset, n=599):
+    #         bs_geneset = np.random.choice(geneset[1], size=(n, len(geneset[1])), replace=True)
+    #         return [(geneset[0], x) for x in bs_geneset]
 
 
-        results = pd.DataFrame()
-        lim = compute_lim(max_ram)
-        print(lim)
+    #     results = pd.DataFrame()
+    #     lim = compute_lim(max_ram)
+    #     print(lim)
                 
-        if n >= lim:
-            print(f'Memory requirements exceed max_ram ({round(max_ram/10**9, 2)} GB).\nSplitting {n} repetitions in sets of {lim}.\n')
-            for i in range(n//lim):
-                print(f'Running {i*lim}-{(i+1)*lim}')
-                bs_genesets = [aux(geneset, lim) for geneset in self.genesets]
-                bs_genesets = [item for sublist in bs_genesets for item in sublist]
-                last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
-                results = pd.concat([results, last], axis=0, ignore_index=True)
-            print(f'Running {(n//lim)*lim}-{n}')
+    #     if n >= lim:
+    #         print(f'Memory requirements exceed max_ram ({round(max_ram/10**9, 2)} GB).\nSplitting {n} repetitions in sets of {lim}.\n')
+    #         for i in range(n//lim):
+    #             print(f'Running {i*lim}-{(i+1)*lim}')
+    #             bs_genesets = [aux(geneset, lim) for geneset in self.genesets]
+    #             bs_genesets = [item for sublist in bs_genesets for item in sublist]
+    #             last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
+    #             results = pd.concat([results, last], axis=0, ignore_index=True)
+    #         print(f'Running {(n//lim)*lim}-{n}')
 
-        bs_genesets = [aux(geneset, n%lim) for geneset in self.genesets]
-        # bs_genesets = [aux(geneset, n) for geneset in self.genesets]
-        bs_genesets = [item for sublist in bs_genesets for item in sublist]
-        last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
-        self.last_result = pd.concat([results, last], axis=0, ignore_index=True)
+    #     bs_genesets = [aux(geneset, n%lim) for geneset in self.genesets]
+    #     # bs_genesets = [aux(geneset, n) for geneset in self.genesets]
+    #     bs_genesets = [item for sublist in bs_genesets for item in sublist]
+    #     last = self.test(genesets=bs_genesets, tests=tests, thresholds=thresholds, populations=populations, label=label) #, c=c)
+    #     self.last_result = pd.concat([results, last], axis=0, ignore_index=True)
         
-        return self.last_result
+    #     return self.last_result
 
 
 

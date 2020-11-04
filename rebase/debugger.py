@@ -1,37 +1,4 @@
-root_dir = '/home/xoel/Escritorio/mastersthesis/'
-data_dir = root_dir+'data/'
-lists_dir = data_dir+'lists/'
-scripts_dir = root_dir+'scripts/'
-results_dir = root_dir+'results/'
-plots_dir = root_dir+'plots/'
-
-import pandas as pd
-import numpy as np
-import MKT
-from timeit import timeit
-import time
-
-#################################################################################
-genes = pd.read_csv(lists_dir+'exp_aa.csv', header=[0,1], index_col=0)
-genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
-ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
-#################################################################################
-
-#################################################################################
-############################### GENERAL DEBUGGING ###############################
-#################################################################################
-pops=['EUR']
-tests=['eMKT']
-thresholds=[[0]]
-
-MKT.MKT.populations_dft = pops
-MKT.MKT.tests_dft = tests
-MKT.MKT.thresholds_dft = thresholds
-#################################################################################
-
-#################################################################################
-# a = MKT.MKT(genes, ph, debug_mode='fast')
-a = MKT.MKT(genes, ph)
+-
 t0=time.time()
 r = a.test()
 time.sleep(1)
@@ -41,8 +8,6 @@ t0=time.time()
 r = a.test(bootstrap=True, reps=10)
 time.sleep(1)
 print(time.time()-t0)
-
-r = a.bootstrap(n=2, max_ram=10)
 #################################################################################
 
 
@@ -70,7 +35,6 @@ plt.plot(r['r'], r['t'])
 
 t0=time.time()
 a.test(populations=pops, tests=tests, thresholds=thresholds, c=100)
-a.bootstrap(n=70, populations=pops, tests=tests, thresholds=thresholds, c=None, max_ram=10)
 time.time()-t0
 #################################################################################
 #################################################################################

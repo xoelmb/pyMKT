@@ -8,11 +8,11 @@ import sys, time
 
 n_jobs = mp.cpu_count()#+mp.cpu_count()//2
 
-def mktest(genesets, popdata, tests, thresholds, bootstrap=False, reps=100, v=True, c=25):
+def mktest(genesets, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True, c=25):
 
-     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, bootstrap=bootstrap, reps=reps, v=v, c=25)
+     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, permute=permute, bootstrap=bootstrap, reps=reps, v=v, permute_vars_alone=permute_vars_alone, permute_vars_and_constant=permute_vars_and_constant, c=25)
 
-     return poldivs
+     # return poldivs
 
      par_expander = lambda x: mkt_caller(**x)
      mypool = mp.Pool(n_jobs)
@@ -20,6 +20,8 @@ def mktest(genesets, popdata, tests, thresholds, bootstrap=False, reps=100, v=Tr
      if v:
           n=len(poldivs)
           results = []
+          sys.stderr.write('· [2/2] Running tests...')
+
           for i, r in enumerate(mypool.imap_unordered(par_expander, poldivs, chunksize=50), 1):
                results.append(r)
                sys.stderr.write(f'\r· [2/2] Running tests {round(i/n*100,2)}%')
@@ -32,7 +34,7 @@ def mktest(genesets, popdata, tests, thresholds, bootstrap=False, reps=100, v=Tr
      return results
 
 
-def mkt_caller(daf, div, test, threshold, name=None, population=None, ngenes=None):
+def mkt_caller(daf, div, test, threshold, name=None, population=None, ngenes=None, repeat=None):
 
      results = {}
 
@@ -47,7 +49,7 @@ def mkt_caller(daf, div, test, threshold, name=None, population=None, ngenes=Non
      else:
           raise RuntimeError('test not available')
 
-     for k, v in zip(['name', 'population', 'test', 'threshold', 'ngenes'], [name, population, test, threshold, ngenes]):
+     for k, v in zip(['name', 'population', 'test', 'threshold', 'ngenes', 'repeat'], [name, population, test, threshold, ngenes, repeat]):
           if v:
                results[k] = v
 
