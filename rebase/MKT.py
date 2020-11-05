@@ -17,6 +17,7 @@ class MKT:
     tests_dft = ['eMKT', 'aMKT']
     thresholds_dft = [[0.05, 0.15], [0, 0.1]]
     bootstrap_lim_dft = 50
+    verbose = True
 
     
     def __init__(self, genes, popdata, frac=False):
@@ -75,14 +76,14 @@ class MKT:
     def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None,
              label=None, reps=100, permute=False, bootstrap=False,
              permute_vars_alone=False, permute_vars_and_constant=True,
-             variable_genes=None, v=True, c=25):
+             variable_genes=None, v=None, c=25):
 
         genesets = self.genesets if not genesets else genesets
         popdata = self.popdata if not popdata else popdata
         tests = self.tests_dft if not tests else tests
         thresholds = self.thresholds_dft if not thresholds else thresholds
         populations = self.populations_dft if not populations else populations
-
+        v = v or self.verbose
         red_popdata = {pop: popdata[pop] for pop in populations}
         
         if permute:
@@ -122,4 +123,8 @@ class MKT:
     def emkt(self, thresholds=None, populations=None, label=None):
 
         return self.test(tests='eMKT', thresholds=thresholds, populations=populations, label=label)
+
+
+
+
 

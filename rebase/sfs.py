@@ -12,9 +12,9 @@ def parallel_sfs(genesets, popdata, tests, thresholds, permute=False, bootstrap=
     mypool = mp.Pool(n_jobs)
     
     func = functools.partial(sfs, popdata=popdata, tests=tests, thresholds=thresholds, permute=permute, bootstrap=bootstrap, reps=reps, permute_vars_alone=permute_vars_alone, permute_vars_and_constant=permute_vars_and_constant)
-    sys.stderr.write(f'· [1/2] Parsing {"and resampling " if (bootstrap or permute) else ""}population data ...')
 
     if v:
+        sys.stderr.write(f'· [1/2] Parsing {"and resampling " if (bootstrap or permute) else ""}population data ...')
         n=len(genesets)
         results = []
         for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=25), 1):

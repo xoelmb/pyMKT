@@ -1,4 +1,22 @@
--
+import pandas as pd
+import numpy as np
+import MKT
+import timeit, time
+from permutator import permutator_mkt
+
+root_dir = '/home/xoel/Escritorio/mastersthesis/'
+data_dir = root_dir+'data/'
+lists_dir = data_dir+'lists/'
+scripts_dir = root_dir+'scripts/'
+results_dir = root_dir+'results/'
+plots_dir = root_dir+'plots/'
+
+genes = pd.read_csv(lists_dir+'exp_aa.csv', header=[0,1], index_col=0)
+genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
+ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
+
+a = MKT.MKT(genes, ph)
+
 t0=time.time()
 r = a.test()
 time.sleep(1)
@@ -8,6 +26,7 @@ t0=time.time()
 r = a.test(bootstrap=True, reps=10)
 time.sleep(1)
 print(time.time()-t0)
+
 #################################################################################
 
 
@@ -90,7 +109,34 @@ diffs.describe()
 
 
 
+#################################################################################
+########### PERMUTATOR DEBUGGER ###########
+#################################################################################
 
+# Test parameters
+pops=['EUR']
+tests=['eMKT']
+thresholds=[[0.15]]
+
+# Reduce data
+genes = genes.sample(frac=0.2, axis=0).sample(frac=0.2, axis=1)
+
+# Groups and mix
+groups = pd.DataFrame([x.split('_') for x in genes.columns],
+                      index=genes.columns,
+                      columns=['Temporal', 'Anatomical'])
+
+mix = [['Temporal', 'Anatomical']]
+
+# Parameters
+vars_alone = True
+vars_and_constant = True
+reps = 1
+
+
+R = permutator_mkt(genes, ph, pops, tests, thresholds, reps, groups, mix, v=False)
+
+#################################################################################
 
 
 
