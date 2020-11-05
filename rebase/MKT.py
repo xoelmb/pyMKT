@@ -98,7 +98,6 @@ class MKT:
                                                       v=v,
                                                       permute_vars_alone=permute_vars_alone,
                                                       permute_vars_and_constant=permute_vars_and_constant))
-        return
 
         if label:
             self.last_result['label'] = label

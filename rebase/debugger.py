@@ -103,7 +103,7 @@ permutator_mkt(genes, ph, groups=groups, mix=mix, reps=reps)
 t=time.time()-t0
 t
 
-R = permutator_mkt(genes, ph, pops, tests, thresholds, reps, groups, mix, v=False)
+# R = permutator_mkt(genes, ph, pops, tests, thresholds, reps, groups, mix, v=False)
 
 #################################################################################
 
