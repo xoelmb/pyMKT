@@ -15,55 +15,19 @@ genes = pd.read_csv(lists_dir+'exp_aa.csv', header=[0,1], index_col=0)
 genes.columns = list(map(lambda x: '_'.join(x), genes.columns.values))
 ph = pd.read_csv(data_dir+'metaPops.tsv', sep='\t')
 
-a = MKT.MKT(genes, ph)
+# a = MKT.MKT(genes, ph)
 
-t0=time.time()
-r = a.test()
-time.sleep(1)
-print(time.time()-t0)
+# t0=time.time()
+# r = a.test()
+# time.sleep(1)
+# print(time.time()-t0)
 
-t0=time.time()
-r = a.test(bootstrap=True, reps=10)
-time.sleep(1)
-print(time.time()-t0)
-
-#################################################################################
-
-
+# t0=time.time()
+# r = a.test(bootstrap=True, reps=10)
+# time.sleep(1)
+# print(time.time()-t0)
 
 #################################################################################
-#################### CHECK HOW CHUNKSIZE AFFECTS PERFORMANCE ####################
-#################################################################################
-import time
-import matplotlib.pyplot as plt
-
-a = MKT.MKT(genes, ph, frac=0.1)
-r = []
-pos = [1,15,25,50, 100, 500]
-reps = [1, 50, 100, 500, 1000]
-for c in pos:
-    print(c)
-    for rep in reps:
-        print(rep)
-        t0=time.time()
-        a.test(bootstrap=True, reps=rep, c=c)
-        r.append(dict(r=rep, c=c, t=time.time()-t0))
-
-r = pd.DataFrame(r)
-plt.plot(r['r'], r['t'])
-
-t0=time.time()
-a.test(populations=pops, tests=tests, thresholds=thresholds, c=100)
-time.time()-t0
-#################################################################################
-#################################################################################
-#################################################################################
-
-
-
-
-
-
 
 
 #################################################################################
@@ -119,7 +83,7 @@ tests=['eMKT']
 thresholds=[[0.15]]
 
 # Reduce data
-genes = genes.sample(frac=0.2, axis=0).sample(frac=0.2, axis=1)
+# genes = genes.sample(frac=0.2, axis=0).sample(frac=0.2, axis=1)
 
 # Groups and mix
 groups = pd.DataFrame([x.split('_') for x in genes.columns],
@@ -131,8 +95,13 @@ mix = [['Temporal', 'Anatomical']]
 # Parameters
 vars_alone = True
 vars_and_constant = True
-reps = 1
+reps = 10
 
+
+t0=time.time()
+permutator_mkt(genes, ph, groups=groups, mix=mix, reps=reps)
+t=time.time()-t0
+t
 
 R = permutator_mkt(genes, ph, pops, tests, thresholds, reps, groups, mix, v=False)
 

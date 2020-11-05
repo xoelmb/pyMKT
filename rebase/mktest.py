@@ -8,11 +8,9 @@ import sys, time
 
 n_jobs = mp.cpu_count()#+mp.cpu_count()//2
 
-def mktest(genesets, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True, c=25):
+def mktest(genesets, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True):
 
-     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, permute=permute, bootstrap=bootstrap, reps=reps, v=v, permute_vars_alone=permute_vars_alone, permute_vars_and_constant=permute_vars_and_constant, c=25)
-
-     # return poldivs
+     poldivs = sfs.parallel_sfs(genesets, popdata, tests, thresholds, permute=permute, bootstrap=bootstrap, reps=reps, v=v, permute_vars_alone=permute_vars_alone, permute_vars_and_constant=permute_vars_and_constant)
 
      par_expander = lambda x: mkt_caller(**x)
      mypool = mp.Pool(n_jobs)
@@ -22,12 +20,12 @@ def mktest(genesets, popdata, tests, thresholds, permute=False, bootstrap=False,
           results = []
           sys.stderr.write('· [2/2] Running tests...')
 
-          for i, r in enumerate(mypool.imap_unordered(par_expander, poldivs, chunksize=50), 1):
+          for i, r in enumerate(mypool.imap_unordered(par_expander, poldivs, chunksize=n//n_jobs+1), 1):
                results.append(r)
                sys.stderr.write(f'\r· [2/2] Running tests {round(i/n*100,2)}%')
           sys.stderr.write('\r· [2/2] Running tests [DONE]\n')
      else:
-          results = list(mypool.imap_unordered(par_expander, poldivs, chunksize=30))
+          results = list(mypool.imap_unordered(par_expander, poldivs, chunksize=n//n_jobs+1))
 
      mypool.terminate()
 

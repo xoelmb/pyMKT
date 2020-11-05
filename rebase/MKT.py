@@ -14,9 +14,8 @@ class MKT:
     columns = ['alpha', 'omega', 'Ka', 'Ks']
     dtypes = 'float'
     populations_dft = ['AFR', 'EUR', 'EAS', 'SAS']
-    tests_dft = ['eMKT', 'aMKT']
-    thresholds_dft = [[0.05, 0.15], [0, 0.1]]
-    bootstrap_lim_dft = 50
+    tests_dft = ['aMKT']
+    thresholds_dft = [[0]]
     verbose = True
 
     
@@ -76,7 +75,7 @@ class MKT:
     def test(self, genesets=None, popdata=None, tests=None, thresholds=None, populations=None,
              label=None, reps=100, permute=False, bootstrap=False,
              permute_vars_alone=False, permute_vars_and_constant=True,
-             variable_genes=None, v=None, c=25):
+             variable_genes=None, v=None):
 
         genesets = self.genesets if not genesets else genesets
         popdata = self.popdata if not popdata else popdata
@@ -98,8 +97,8 @@ class MKT:
                                                       reps=reps,
                                                       v=v,
                                                       permute_vars_alone=permute_vars_alone,
-                                                      permute_vars_and_constant=permute_vars_and_constant,
-                                                      c=c))
+                                                      permute_vars_and_constant=permute_vars_and_constant))
+        return
 
         if label:
             self.last_result['label'] = label

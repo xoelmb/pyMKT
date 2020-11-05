@@ -15,7 +15,7 @@ def permutator_mkt(genes, ph, pops=None, tests=None, thresholds=None,
         return
 
     def perm_results_to_dict(df):
-        return {val[5:]: df[df['repeat']==val] for val in df['repeat'].unique()}
+        return {val[5:]: df[df['repeat']==val] for val in df['repeat'].unique()} if df is not None else None
 
 
     def condense_mask(ls):
@@ -30,7 +30,10 @@ def permutator_mkt(genes, ph, pops=None, tests=None, thresholds=None,
     ####### INTIALIZATION #######
     #############################
 
-    if not v: print = muter
+    if not v:
+        global print
+        old_print = print
+        print = muter
 
     # Create tuned MKT
     myMKT = MKT.MKT
@@ -199,6 +202,7 @@ def permutator_mkt(genes, ph, pops=None, tests=None, thresholds=None,
     GENES_DB['VARS'] = pd.concat(BUFFER_VAR_DB, axis=1).fillna(0).astype(int)
     RESULTS['VARS'] = myMKT(GENES_DB['VARS'], ph).test()
 
+    if not v: print = old_print
 
     return RESULTS
 

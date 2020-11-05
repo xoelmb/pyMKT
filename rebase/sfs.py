@@ -7,7 +7,7 @@ import pandas as pd
 n_jobs = mp.cpu_count()
 
 
-def parallel_sfs(genesets, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True, c=25):
+def parallel_sfs(genesets, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, v=True, permute_vars_alone=False, permute_vars_and_constant=True):
     
     mypool = mp.Pool(n_jobs)
     
@@ -17,12 +17,12 @@ def parallel_sfs(genesets, popdata, tests, thresholds, permute=False, bootstrap=
         sys.stderr.write(f'· [1/2] Parsing {"and resampling " if (bootstrap or permute) else ""}population data ...')
         n=len(genesets)
         results = []
-        for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=25), 1):
+        for i, r in enumerate(mypool.imap_unordered(func, genesets, chunksize=n//n_jobs+1), 1):
             results.append(r)
             sys.stderr.write(f'\r· [1/2] Parsing {"and resampling " if (bootstrap or permute) else ""}population data {round(i/n*100,2)}%')
         sys.stderr.write(f'\r· [1/2] Parsing {"and resampling " if (bootstrap or permute) else ""}population data [DONE]\n')
     else:
-        results = list(mypool.imap_unordered(func, genesets, chunksize=30))
+        results = list(mypool.imap_unordered(func, genesets, chunksize=n//n_jobs+1))
 
     mypool.terminate()
     poldivs = tuple(item for sublist in results for item in sublist)
@@ -95,27 +95,7 @@ def sfs(geneset, popdata, tests, thresholds, permute=False, bootstrap=False, rep
                                             threshold=th,
                                             ngenes=ng, 
                                             repeat=repeat))
-    # for pop, data in popdata.items():
-    #     data = data[data.id.isin(geneset[1])]
-
-    #     for _ in range(reps if (bootstrap or permute) else 1):
-    #         if bootstrap:
-    #             idata = data.sample(len(data), replace=True)
-            # else:
-            #     idata = data
-            
-            # poldiv_i = makeSfs(idata, cum)
-
-            # for t, ths in zip(tests, thresholds):
-            #     use_daf = 'daf_cum' if t == 'aMKT' else 'daf'
-            #     for th in ths:
-            #         poldivs.append(dict(name=geneset[0],
-            #                             population=pop,
-            #                             daf=poldiv_i[use_daf],
-            #                             div=poldiv_i['div'],
-            #                             test=t,
-            #                             threshold=th,
-            #                             ngenes=len(idata.index)))
+                                            
     return poldivs
 
 
