@@ -39,8 +39,11 @@ def emkt(daf, div, cutoff=0.15, f=np.arange(0.025,0.985,0.05)):
     res['neg_d'] = 1 - (res['neg_f'] + res['neg_b'])
 
     # res['pvalue'] = fisher.pvalue(P0, D0, Pi - deleterious, Di).two_tail
-    res['pvalue'] = pval(P0, D0, Pi - deleterious, Di)
-
+    try:
+        res['pvalue'] = pval(P0, D0, Pi - deleterious, Di)
+    except:
+        pass
+    
     ## Omega A and Omega D
     res['omegaA'] = res['omega'] * res['alpha']
     res['omegaD'] = res['omega'] - res['omegaA']
