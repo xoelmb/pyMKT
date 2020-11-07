@@ -142,6 +142,7 @@ def permutator_mkt(genes, ph, pops=None, tests=None, thresholds=None,
         for combine in mix:
 
             VAR = '+'.join(combine)
+            print(f'\n{VAR} permutations...')
 
             TO_COMBINE = groups[combine]
             UNIQUES = [np.unique(x) for x in TO_COMBINE.to_numpy().astype(str).T]

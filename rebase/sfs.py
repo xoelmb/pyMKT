@@ -33,14 +33,15 @@ def parallel_sfs(genesets, popdata, tests, thresholds, permute=False, bootstrap=
 def sfs(geneset, popdata, tests, thresholds, permute=False, bootstrap=False, reps=100, permute_vars_alone=False, permute_vars_and_constant=True):
 
     def aux_single():
-        return [makeSfs(data, cum)], [len(data.index)], ['single']
+        idata = data[data.id.isin(geneset[1])]
+        return [makeSfs(idata, cum)], [len(idata.index)], ['single']
 
     def aux_bootstrap():
         idata = data.sample(len(data), replace=True)
         return [makeSfs(idata, cum)], [len(idata.index)], ['bootstrap']
     
     def aux_permute():
-
+        # print(f'VARS AVA {len(geneset[2])}\tVARS EXP {N_VARS}\tCONS {len(CONSTANT_set)}\tVARS POP {len(data[data.id.isin(geneset[2])].index)}')
         idata_var = data[data.id.isin(geneset[2])].sample(N_VARS, replace=False)
         poldiv_is = []
         ngenes = []
@@ -65,13 +66,12 @@ def sfs(geneset, popdata, tests, thresholds, permute=False, bootstrap=False, rep
     cum = True if 'aMKT' in tests else False
     poldivs = []
     
-    mode_function = aux_bootstrap if bootstrap else aux_permute if permute else aux_single
+    mode_function = aux_permute if permute else aux_bootstrap if bootstrap else aux_single
 
 
 
     for pop, data in popdata.items():
-        data = data[data.id.isin(geneset[1])]
-        
+
         if permute:
             # Store constant genes
             CONSTANT_set = set(geneset[1])-set(geneset[2])

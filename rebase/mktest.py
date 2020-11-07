@@ -48,7 +48,7 @@ def mkt_caller(daf, div, test, threshold, name=None, population=None, ngenes=Non
           raise RuntimeError('test not available')
 
      for k, v in zip(['name', 'population', 'test', 'threshold', 'ngenes', 'repeat'], [name, population, test, threshold, ngenes, repeat]):
-          if v:
+          if v is not None:
                results[k] = v
 
      return results
